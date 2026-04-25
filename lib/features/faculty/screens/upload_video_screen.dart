@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../services/video_service.dart';
-import '../../../models/video_lecture_model.dart';
 import '../widgets/upload_progress_widget.dart';
 
 final videoServiceProvider = Provider<VideoService>((ref) {
@@ -25,16 +24,31 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   final _descriptionController = TextEditingController();
   final _durationController = TextEditingController();
 
-  String _selectedSubject = 'Mathematics';
-  String _selectedChapter = 'Calculus II';
+  String? _subjectId;
+  String? _chapterId;
+  String _subjectLabel = 'Mathematics';
+  String _chapterLabel = 'Calculus II';
   bool _visibleToStudents = true;
   bool _isUploading = false;
   double _progress = 0;
   PlatformFile? _pickedFile;
-  String? _uploadedUrl;
 
-  final List<String> _subjects = const ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
-  final List<String> _chapters = const ['Calculus I', 'Calculus II', 'Matrices', 'Differentiation'];
+  final _subjects = const [
+    {'id': 'sub-1', 'label': 'Mathematics'},
+    {'id': 'sub-2', 'label': 'Physics'},
+  ];
+
+  final _chapters = const [
+    {'id': 'ch-1', 'label': 'Calculus I'},
+    {'id': 'ch-2', 'label': 'Calculus II'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _subjectId = _subjects.first['id'];
+    _chapterId = _chapters.first['id'];
+  }
 
   @override
   void dispose() {
@@ -51,17 +65,21 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       withData: false,
     );
     if (result == null || result.files.single.path == null) return;
+
     setState(() {
       _pickedFile = result.files.single;
-      _uploadedUrl = null;
       _progress = 0;
     });
   }
 
   Future<void> _uploadVideo() async {
     if (_pickedFile?.path == null) return;
+    if (_subjectId == null || _chapterId == null) return;
+
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a video title')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a video title')),
+      );
       return;
     }
 
@@ -76,38 +94,78 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       final facultyId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
       setState(() => _progress = 0.35);
-      final url = await service.uploadVideoFile(
+
+      final storagePath = await service.uploadVideoFile(
         file: file,
-        subject: _selectedSubject,
         facultyId: facultyId,
+        subjectId: _subjectId!,
+        chapterId: _chapterId!,
       );
 
       setState(() => _progress = 0.75);
-      final lecture = await service.createVideoLecture(
+
+      await service.createVideoLecture(
         facultyId: facultyId,
-        subject: _selectedSubject,
+        subjectId: _subjectId!,
+        chapterId: _chapterId!,
         title: _titleController.text.trim(),
-        videoUrl: url,
-        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        chapter: _selectedChapter,
-        visibleToStudents: _visibleToStudents,
-        duration: _durationController.text.trim().isEmpty ? null : _durationController.text.trim(),
+        storagePath: storagePath,
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        isVisible: _visibleToStudents,
+        fileSizeKb: (_pickedFile!.size / 1024).round(),
+        duration: _durationController.text.trim().isEmpty
+            ? null
+            : _durationController.text.trim(),
       );
 
       setState(() {
-        _uploadedUrl = lecture.videoUrl;
         _progress = 1;
         _isUploading = false;
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video uploaded successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Video uploaded successfully')),
+      );
     } catch (e) {
       setState(() => _isUploading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
     }
   }
+
+  Future<void> _pickSubject() async {
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      builder: (_) => _PickerSheet(items: _subjects),
+    );
+    if (result != null) {
+      setState(() {
+        _subjectId = result['id'];
+        _subjectLabel = result['label'] ?? _subjectLabel;
+      });
+    }
+  }
+
+  Future<void> _pickChapter() async {
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      builder: (_) => _PickerSheet(items: _chapters),
+    );
+    if (result != null) {
+      setState(() {
+        _chapterId = result['id'];
+        _chapterLabel = result['label'] ?? _chapterLabel;
+      });
+    }
+  }
+
+  String _formatBytes(int bytes) =>
+      '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
   @override
   Widget build(BuildContext context) {
@@ -127,10 +185,10 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: primary),
         ),
         titleSpacing: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Upload Video Lecture',
               style: TextStyle(
                 color: primary,
@@ -138,14 +196,10 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                 fontSize: 17,
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               'Upload and manage educational videos',
-              style: TextStyle(
-                color: grey,
-                fontWeight: FontWeight.w400,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: grey, fontSize: 12),
             ),
           ],
         ),
@@ -153,7 +207,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _CardShell(
+          _sectionCard(
             child: Row(
               children: [
                 Container(
@@ -182,9 +236,16 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: [
-                          _Pill(label: 'Mathematics', background: const Color(0xFFFFF3E0), textColor: const Color(0xFFF59E0B)),
-                          const _CounterChip(icon: Icons.ondemand_video_rounded, label: '24 Videos'),
+                        children: const [
+                          _Pill(
+                            label: 'Mathematics',
+                            background: Color(0xFFFFF3E0),
+                            textColor: Color(0xFFF59E0B),
+                          ),
+                          _CounterChip(
+                            icon: Icons.ondemand_video_rounded,
+                            label: '24 Videos',
+                          ),
                         ],
                       ),
                     ],
@@ -194,13 +255,17 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          _CardShell(
+          _sectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Video Details',
-                  style: TextStyle(color: dark, fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: dark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -208,28 +273,16 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                     Expanded(
                       child: _DropdownField(
                         label: 'SUBJECT',
-                        value: _selectedSubject,
-                        onTap: () async {
-                          final result = await showModalBottomSheet<String>(
-                            context: context,
-                            builder: (context) => _SimplePickerSheet(title: 'Select Subject', items: _subjects, selected: _selectedSubject),
-                          );
-                          if (result != null) setState(() => _selectedSubject = result);
-                        },
+                        value: _subjectLabel,
+                        onTap: _pickSubject,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _DropdownField(
                         label: 'CHAPTER',
-                        value: _selectedChapter,
-                        onTap: () async {
-                          final result = await showModalBottomSheet<String>(
-                            context: context,
-                            builder: (context) => _SimplePickerSheet(title: 'Select Chapter', items: _chapters, selected: _selectedChapter),
-                          );
-                          if (result != null) setState(() => _selectedChapter = result);
-                        },
+                        value: _chapterLabel,
+                        onTap: _pickChapter,
                       ),
                     ),
                   ],
@@ -237,16 +290,24 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                 const SizedBox(height: 14),
                 const _FieldLabel(label: 'VIDEO TITLE *'),
                 const SizedBox(height: 6),
-                TextField(controller: _titleController, decoration: _inputDecoration('Enter descriptive title')),
+                TextField(
+                  controller: _titleController,
+                  decoration: _inputDecoration('Enter descriptive title'),
+                ),
                 const SizedBox(height: 14),
                 const _FieldLabel(label: 'DESCRIPTION'),
                 const SizedBox(height: 6),
-                TextField(controller: _descriptionController, minLines: 3, maxLines: 4, decoration: _inputDecoration('Add lecture summary…')),
+                TextField(
+                  controller: _descriptionController,
+                  minLines: 3,
+                  maxLines: 4,
+                  decoration: _inputDecoration('Add lecture summary…'),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          _CardShell(
+          _sectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -268,12 +329,25 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                             color: const Color(0xFFEEECFD),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Icon(Icons.cloud_upload_rounded, color: primary),
+                          child: const Icon(
+                            Icons.cloud_upload_rounded,
+                            color: primary,
+                          ),
                         ),
                         const SizedBox(height: 10),
-                        const Text('Tap to select video', style: TextStyle(color: primary, fontSize: 14, fontWeight: FontWeight.w700)),
+                        const Text(
+                          'Tap to select video',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        const Text('MP4, MOV up to 500MB', style: TextStyle(color: grey, fontSize: 12)),
+                        const Text(
+                          'MP4, MOV, MKV, AVI up to 500MB',
+                          style: TextStyle(color: grey, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -283,40 +357,52 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                   _SelectedFileRow(
                     fileName: _pickedFile!.name,
                     fileSize: _formatBytes(_pickedFile!.size),
-                    showRemove: !_isUploading,
                     onRemove: _isUploading
                         ? null
-                        : () {
-                      setState(() {
-                        _pickedFile = null;
-                        _uploadedUrl = null;
-                      });
-                    },
+                        : () => setState(() => _pickedFile = null),
                   ),
                 ],
                 if (_isUploading) ...[
                   const SizedBox(height: 10),
-                  UploadProgressWidget(progress: _progress, rightText: '${(_progress * 100).toInt()}%'),
+                  UploadProgressWidget(
+                    progress: _progress,
+                    rightText: '${(_progress * 100).toInt()}%',
+                  ),
                 ],
               ],
             ),
           ),
           const SizedBox(height: 14),
-          _CardShell(
+          _sectionCard(
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, color: Colors.grey, size: 20),
+                    const Icon(Icons.schedule_rounded,
+                        color: Colors.grey, size: 20),
                     const SizedBox(width: 10),
-                    const Text('Duration', style: TextStyle(color: dark, fontWeight: FontWeight.w600, fontSize: 14)),
+                    const Text(
+                      'Duration',
+                      style: TextStyle(
+                        color: dark,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                     const Spacer(),
                     SizedBox(
                       width: 90,
                       child: TextField(
                         controller: _durationController,
                         textAlign: TextAlign.end,
-                        decoration: const InputDecoration(border: InputBorder.none, hintText: '45:20', hintStyle: TextStyle(color: primary, fontWeight: FontWeight.w800)),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: '45:20',
+                          hintStyle: TextStyle(
+                            color: primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -324,12 +410,25 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                 const Divider(height: 20),
                 Row(
                   children: [
-                    const Icon(Icons.visibility_outlined, color: Colors.grey, size: 20),
+                    const Icon(Icons.visibility_outlined,
+                        color: Colors.grey, size: 20),
                     const SizedBox(width: 10),
                     const Expanded(
-                      child: Text('Visible to Students', style: TextStyle(color: dark, fontWeight: FontWeight.w600, fontSize: 14)),
+                      child: Text(
+                        'Visible to Students',
+                        style: TextStyle(
+                          color: dark,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                    Switch(value: _visibleToStudents, activeColor: primary, onChanged: (value) => setState(() => _visibleToStudents = value)),
+                    Switch(
+                      value: _visibleToStudents,
+                      activeColor: primary,
+                      onChanged: (value) =>
+                          setState(() => _visibleToStudents = value),
+                    ),
                   ],
                 ),
               ],
@@ -342,10 +441,19 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
               onPressed: _isUploading ? null : _uploadVideo,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 elevation: 0,
               ),
-              child: const Text('Upload Video', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+              child: const Text(
+                'Upload Video',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -356,145 +464,223 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
                 side: BorderSide.none,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-              child: const Text('Cancel', style: TextStyle(color: grey, fontWeight: FontWeight.w400, fontSize: 15)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: grey,
+                  fontWeight: FontWeight.w400,
+                  fontSize: 15,
+                ),
+              ),
             ),
           ),
-          if (_uploadedUrl != null) ...[
-            const SizedBox(height: 14),
-            Text('Uploaded URL: $_uploadedUrl', style: const TextStyle(fontSize: 12, color: grey)),
-          ],
         ],
       ),
     );
   }
 
-  String _formatBytes(int bytes) {
-    final mb = bytes / (1024 * 1024);
-    return '${mb.toStringAsFixed(1)} MB';
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF5B5FEF))),
-    );
-  }
+  InputDecoration _inputDecoration(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFF5B5FEF)),
+    ),
+  );
 }
 
-class _CardShell extends StatelessWidget {
-  final Widget child;
-  const _CardShell({required this.child});
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 1,
-      shadowColor: Colors.black12,
-      child: Padding(padding: const EdgeInsets.all(16), child: child),
-    );
-  }
-}
+Widget _sectionCard({required Widget child}) => Material(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(14),
+  elevation: 1,
+  shadowColor: Colors.black12,
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: child,
+  ),
+);
 
 class _FieldLabel extends StatelessWidget {
   final String label;
   const _FieldLabel({required this.label});
+
   @override
-  Widget build(BuildContext context) {
-    return Text(label, style: const TextStyle(fontSize: 11, letterSpacing: 0.4, fontWeight: FontWeight.w700, color: Color(0xFF6B7280)));
-  }
+  Widget build(BuildContext context) => Text(
+    label,
+    style: const TextStyle(
+      fontSize: 11,
+      letterSpacing: 0.4,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF6B7280),
+    ),
+  );
 }
 
 class _DropdownField extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
-  const _DropdownField({required this.label, required this.value, required this.onTap});
+
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label: label),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE5E7EB))),
-            child: Row(children: [Expanded(child: Text(value, style: const TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600))), const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF6B7280))]),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _FieldLabel(label: label),
+      const SizedBox(height: 6),
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A2E),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF6B7280),
+              ),
+            ],
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
-class _SimplePickerSheet extends StatelessWidget {
-  final String title;
-  final List<String> items;
-  final String selected;
-  const _SimplePickerSheet({required this.title, required this.items, required this.selected});
+class _PickerSheet extends StatelessWidget {
+  final List<Map<String, String>> items;
+  const _PickerSheet({required this.items});
+
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        shrinkWrap: true,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          ...items.map((item) => ListTile(title: Text(item), trailing: item == selected ? const Icon(Icons.check, color: Color(0xFF5B5FEF)) : null, onTap: () => Navigator.pop(context, item))),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SafeArea(
+    child: ListView(
+      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      children: items
+          .map(
+            (e) => ListTile(
+          title: Text(e['label'] ?? ''),
+          onTap: () => Navigator.pop(context, e),
+        ),
+      )
+          .toList(),
+    ),
+  );
 }
 
 class _Pill extends StatelessWidget {
   final String label;
   final Color background;
   final Color textColor;
-  const _Pill({required this.label, required this.background, required this.textColor});
+
+  const _Pill({
+    required this.label,
+    required this.background,
+    required this.textColor,
+  });
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700)),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: background,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: textColor,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 class _CounterChip extends StatelessWidget {
   final IconData icon;
   final String label;
+
   const _CounterChip({required this.icon, required this.label});
+
   @override
-  Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: Colors.white), const SizedBox(width: 4), Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))]);
-  }
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: Colors.white),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  );
 }
 
 class _SelectedFileRow extends StatelessWidget {
   final String fileName;
   final String fileSize;
-  final bool showRemove;
   final VoidCallback? onRemove;
-  const _SelectedFileRow({required this.fileName, required this.fileSize, required this.showRemove, this.onRemove});
+
+  const _SelectedFileRow({
+    required this.fileName,
+    required this.fileSize,
+    this.onRemove,
+  });
+
   @override
-  Widget build(BuildContext context) {
-    const dark = Color(0xFF1A1A2E);
-    return Row(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0F000000),
+          blurRadius: 8,
+          offset: Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Row(
       children: [
         const Icon(Icons.video_file_rounded, color: Color(0xFF5B5FEF)),
         const SizedBox(width: 10),
@@ -502,18 +688,33 @@ class _SelectedFileRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(fileName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: dark)),
+              Text(
+                fileName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(fileSize, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              Text(
+                fileSize,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
             ],
           ),
         ),
-        if (showRemove)
-          InkWell(
-            onTap: onRemove,
-            child: const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444)),
+        InkWell(
+          onTap: onRemove,
+          child: const Icon(
+            Icons.cancel_rounded,
+            color: Color(0xFFEF4444),
           ),
+        ),
       ],
-    );
-  }
+    ),
+  );
 }

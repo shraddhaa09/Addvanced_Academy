@@ -14,7 +14,8 @@ class UploadProgressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (progress * 100).clamp(0, 100).toInt();
+    final value = progress.clamp(0.0, 1.0);
+    final percentage = (value * 100).toInt();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,9 +25,11 @@ class UploadProgressWidget extends StatelessWidget {
           child: SizedBox(
             height: 6,
             child: LinearProgressIndicator(
-              value: progress.clamp(0, 1),
+              value: value,
               backgroundColor: const Color(0xFFE5E7EB),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5B5FEF)),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF5B5FEF),
+              ),
             ),
           ),
         ),
