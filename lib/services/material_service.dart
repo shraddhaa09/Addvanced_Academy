@@ -48,13 +48,5 @@ class MaterialService {
     return Map<String, dynamic>.from(response as Map);
   }
 
-  Future<List<Map<String, dynamic>>> fetchRecentMaterials(String facultyId) async {
-    final response = await _client
-        .from('v_faculty_uploads')
-        .select()
-        .eq('faculty_id', facultyId)
-        .order('uploaded_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response as List);
-  }
 }

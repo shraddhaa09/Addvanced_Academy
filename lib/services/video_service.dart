@@ -27,7 +27,7 @@ class VideoService {
     String? description,
     required bool isVisible,
     int? fileSizeKb,
-    String? duration,
+    int? durationSec,
   }) async {
     final payload = {
       'faculty_id': facultyId,
@@ -38,19 +38,12 @@ class VideoService {
       'description': description,
       'is_visible': isVisible,
       'file_size_kb': fileSizeKb,
-      'duration': duration,
+      'duration_sec': durationSec,
     };
 
     final response = await _client.from('video_lectures').insert(payload).select().single();
     return Map<String, dynamic>.from(response as Map);
   }
 
-  Future<List<Map<String, dynamic>>> fetchRecentUploads(String facultyId) async {
-    final response = await _client
-        .from('v_faculty_uploads')
-        .select()
-        .eq('faculty_id', facultyId)
-        .order('uploaded_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response as List);
-  }
+
 }

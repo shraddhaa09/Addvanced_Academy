@@ -3,14 +3,11 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../services/video_service.dart';
-import '../widgets/upload_progress_widget.dart';
-
-final videoServiceProvider = Provider<VideoService>((ref) {
-  return VideoService(Supabase.instance.client);
-});
+import '../../../models/chapter_model.dart';
+import '../../../models/subject_model.dart';
+import '../../../providers/faculty_providers.dart';
 
 class UploadVideoScreen extends ConsumerStatefulWidget {
   const UploadVideoScreen({super.key});
@@ -20,35 +17,16 @@ class UploadVideoScreen extends ConsumerStatefulWidget {
 }
 
 class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _durationController = TextEditingController();
 
-  String? _subjectId;
-  String? _chapterId;
-  String _subjectLabel = 'Mathematics';
-  String _chapterLabel = 'Calculus II';
-  bool _visibleToStudents = true;
+  SubjectModel? _selectedSubject;
+  ChapterModel? _selectedChapter;
+  bool _isVisible = true;
+  File? _selectedFile;
   bool _isUploading = false;
-  double _progress = 0;
-  PlatformFile? _pickedFile;
-
-  final _subjects = const [
-    {'id': 'sub-1', 'label': 'Mathematics'},
-    {'id': 'sub-2', 'label': 'Physics'},
-  ];
-
-  final _chapters = const [
-    {'id': 'ch-1', 'label': 'Calculus I'},
-    {'id': 'ch-2', 'label': 'Calculus II'},
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _subjectId = _subjects.first['id'];
-    _chapterId = _chapters.first['id'];
-  }
 
   @override
   void dispose() {
@@ -59,662 +37,258 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   }
 
   Future<void> _pickVideo() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp4', 'mov', 'mkv', 'avi'],
-      withData: false,
-    );
-    if (result == null || result.files.single.path == null) return;
-
-    setState(() {
-      _pickedFile = result.files.single;
-      _progress = 0;
-    });
+    final result = await FilePicker.platform.pickFiles(type: FileType.video);
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _selectedFile = File(result.files.single.path!);
+      });
+    }
   }
 
-  Future<void> _uploadVideo() async {
-    if (_pickedFile?.path == null) return;
-    if (_subjectId == null || _chapterId == null) return;
-
-    if (_titleController.text.trim().isEmpty) {
+  Future<void> _upload() async {
+    if (!_formKey.currentState!.validate() || _selectedSubject == null || _selectedChapter == null || _selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a video title')),
+        const SnackBar(content: Text('Please fill all required fields and select a video')),
       );
       return;
     }
 
     setState(() {
       _isUploading = true;
-      _progress = 0.1;
     });
 
     try {
-      final service = ref.read(videoServiceProvider);
-      final file = File(_pickedFile!.path!);
-      final facultyId = Supabase.instance.client.auth.currentUser?.id ?? '';
+      final facultyId = await ref.read(currentFacultyIdProvider.future);
+      if (facultyId == null) {
+        throw Exception('Could not determine faculty ID');
+      }
 
-      setState(() => _progress = 0.35);
+      final videoService = ref.read(videoServiceProvider);
 
-      final storagePath = await service.uploadVideoFile(
-        file: file,
+      // Upload file
+      final storagePath = await videoService.uploadVideoFile(
+        file: _selectedFile!,
         facultyId: facultyId,
-        subjectId: _subjectId!,
-        chapterId: _chapterId!,
+        subjectId: _selectedSubject!.id,
+        chapterId: _selectedChapter!.id,
       );
 
-      setState(() => _progress = 0.75);
-
-      await service.createVideoLecture(
+      // Save record
+      await videoService.createVideoLecture(
         facultyId: facultyId,
-        subjectId: _subjectId!,
-        chapterId: _chapterId!,
+        subjectId: _selectedSubject!.id,
+        chapterId: _selectedChapter!.id,
         title: _titleController.text.trim(),
         storagePath: storagePath,
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        isVisible: _visibleToStudents,
-        fileSizeKb: (_pickedFile!.size / 1024).round(),
-        duration: _durationController.text.trim().isEmpty
-            ? null
-            : _durationController.text.trim(),
+        description: _descriptionController.text.trim(),
+        durationSec: int.tryParse(_durationController.text.trim()),
+        fileSizeKb: (_selectedFile!.lengthSync() / 1024).round(),
+        isVisible: _isVisible,
       );
 
-      setState(() {
-        _progress = 1;
-        _isUploading = false;
-      });
+      // Refresh recent uploads
+      ref.invalidate(recentFacultyUploadsProvider);
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Video uploaded successfully')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video uploaded successfully!')),
+        );
+        context.pop();
+      }
     } catch (e) {
-      setState(() => _isUploading = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
-
-  Future<void> _pickSubject() async {
-    final result = await showModalBottomSheet<Map<String, String>>(
-      context: context,
-      builder: (_) => _PickerSheet(items: _subjects),
-    );
-    if (result != null) {
-      setState(() {
-        _subjectId = result['id'];
-        _subjectLabel = result['label'] ?? _subjectLabel;
-      });
-    }
-  }
-
-  Future<void> _pickChapter() async {
-    final result = await showModalBottomSheet<Map<String, String>>(
-      context: context,
-      builder: (_) => _PickerSheet(items: _chapters),
-    );
-    if (result != null) {
-      setState(() {
-        _chapterId = result['id'];
-        _chapterLabel = result['label'] ?? _chapterLabel;
-      });
-    }
-  }
-
-  String _formatBytes(int bytes) =>
-      '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF5B5FEF);
-    const bg = Color(0xFFF4F5F9);
-    const dark = Color(0xFF1A1A2E);
-    const grey = Color(0xFF6B7280);
+    final subjectsAsync = ref.watch(subjectsProvider);
+    final chaptersAsync = _selectedSubject != null 
+        ? ref.watch(chaptersProvider(_selectedSubject!.id))
+        : const AsyncValue.data(<ChapterModel>[]);
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: const Color(0xFFF4F5FA),
       appBar: AppBar(
+        title: const Text('Upload Video Lecture'),
         backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
-        toolbarHeight: 64,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: primary),
-        ),
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Upload Video Lecture',
-              style: TextStyle(
-                color: primary,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Upload and manage educational videos',
-              style: TextStyle(color: grey, fontSize: 12),
-            ),
-          ],
-        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _sectionCard(
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEECFD),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Icon(Icons.school_rounded, color: primary),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Dr. Aris Thorne',
-                        style: TextStyle(
-                          color: dark,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: const [
-                          _Pill(
-                            label: 'Mathematics',
-                            background: Color(0xFFFFF3E0),
-                            textColor: Color(0xFFF59E0B),
-                          ),
-                          _CounterChip(
-                            icon: Icons.ondemand_video_rounded,
-                            label: '24 Videos',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _sectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Video Details',
-                  style: TextStyle(
-                    color: dark,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
+      body: _isUploading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B4FCF)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _DropdownField(
-                        label: 'SUBJECT',
-                        value: _subjectLabel,
-                        onTap: _pickSubject,
+                    // Video File Selection
+                    GestureDetector(
+                      onTap: _pickVideo,
+                      child: Container(
+                        width: double.infinity,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        ),
+                        child: _selectedFile == null
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.video_call, size: 64, color: Colors.grey[400]),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tap to select video',
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'MP4, MOV (Max 500MB)',
+                                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_circle, size: 48, color: Color(0xFF1E8C6E)),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _selectedFile!.path.split('/').last,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _pickVideo,
+                                    child: const Text('Change File'),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _DropdownField(
-                        label: 'CHAPTER',
-                        value: _chapterLabel,
-                        onTap: _pickChapter,
+                    const SizedBox(height: 24),
+
+                    // Form Fields
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: _inputDecoration('Video Title'),
+                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: _inputDecoration('Description (Optional)'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+
+                    subjectsAsync.when(
+                      data: (subjects) => DropdownButtonFormField<SubjectModel>(
+                        initialValue: _selectedSubject,
+                        decoration: _inputDecoration('Select Subject'),
+                        items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedSubject = val;
+                            _selectedChapter = null; // Reset chapter when subject changes
+                          });
+                        },
+                        validator: (val) => val == null ? 'Required' : null,
                       ),
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Text('Error loading subjects: $e'),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const _FieldLabel(label: 'VIDEO TITLE *'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _titleController,
-                  decoration: _inputDecoration('Enter descriptive title'),
-                ),
-                const SizedBox(height: 14),
-                const _FieldLabel(label: 'DESCRIPTION'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _descriptionController,
-                  minLines: 3,
-                  maxLines: 4,
-                  decoration: _inputDecoration('Add lecture summary…'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _sectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                InkWell(
-                  onTap: _isUploading ? null : _pickVideo,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 22),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: primary),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEEECFD),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Icon(
-                            Icons.cloud_upload_rounded,
-                            color: primary,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Tap to select video',
-                          style: TextStyle(
-                            color: primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'MP4, MOV, MKV, AVI up to 500MB',
-                          style: TextStyle(color: grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_pickedFile != null) ...[
-                  const SizedBox(height: 14),
-                  _SelectedFileRow(
-                    fileName: _pickedFile!.name,
-                    fileSize: _formatBytes(_pickedFile!.size),
-                    onRemove: _isUploading
-                        ? null
-                        : () => setState(() => _pickedFile = null),
-                  ),
-                ],
-                if (_isUploading) ...[
-                  const SizedBox(height: 10),
-                  UploadProgressWidget(
-                    progress: _progress,
-                    rightText: '${(_progress * 100).toInt()}%',
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _sectionCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.schedule_rounded,
-                        color: Colors.grey, size: 20),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'Duration',
-                      style: TextStyle(
-                        color: dark,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    const SizedBox(height: 16),
+
+                    chaptersAsync.when(
+                      data: (chapters) => DropdownButtonFormField<ChapterModel>(
+                        initialValue: _selectedChapter,
+                        decoration: _inputDecoration('Select Chapter'),
+                        items: chapters.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                        onChanged: (val) => setState(() => _selectedChapter = val),
+                        validator: (val) => val == null ? 'Required' : null,
                       ),
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Text('Error loading chapters: $e'),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _durationController,
+                      decoration: _inputDecoration('Duration (Seconds)'),
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val != null && val.isNotEmpty && int.tryParse(val) == null) {
+                          return 'Must be a valid number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    SwitchListTile(
+                      title: const Text('Visible to Students'),
+                      subtitle: const Text('Publish immediately after upload'),
+                      value: _isVisible,
+                      onChanged: (val) => setState(() => _isVisible = val),
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: const Color(0xFF5B4FCF),
+                    ),
+                    const SizedBox(height: 32),
+
                     SizedBox(
-                      width: 90,
-                      child: TextField(
-                        controller: _durationController,
-                        textAlign: TextAlign.end,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: '45:20',
-                          hintStyle: TextStyle(
-                            color: primary,
-                            fontWeight: FontWeight.w800,
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _upload,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5B4FCF),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    const Icon(Icons.visibility_outlined,
-                        color: Colors.grey, size: 20),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Visible to Students',
-                        style: TextStyle(
-                          color: dark,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                        child: const Text(
+                          'Upload Video',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
                     ),
-                    Switch(
-                      value: _visibleToStudents,
-                      activeColor: primary,
-                      onChanged: (value) =>
-                          setState(() => _visibleToStudents = value),
-                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _isUploading ? null : _uploadVideo,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Upload Video',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: grey,
-                  fontWeight: FontWeight.w400,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  InputDecoration _inputDecoration(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-    filled: true,
-    fillColor: Colors.white,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFF5B5FEF)),
-    ),
-  );
-}
-
-Widget _sectionCard({required Widget child}) => Material(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(14),
-  elevation: 1,
-  shadowColor: Colors.black12,
-  child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: child,
-  ),
-);
-
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) => Text(
-    label,
-    style: const TextStyle(
-      fontSize: 11,
-      letterSpacing: 0.4,
-      fontWeight: FontWeight.w700,
-      color: Color(0xFF6B7280),
-    ),
-  );
-}
-
-class _DropdownField extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  const _DropdownField({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _FieldLabel(label: label),
-      const SizedBox(height: 6),
-      InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color(0xFF1A1A2E),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF6B7280),
-              ),
-            ],
-          ),
-        ),
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
-    ],
-  );
-}
-
-class _PickerSheet extends StatelessWidget {
-  final List<Map<String, String>> items;
-  const _PickerSheet({required this.items});
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      shrinkWrap: true,
-      children: items
-          .map(
-            (e) => ListTile(
-          title: Text(e['label'] ?? ''),
-          onTap: () => Navigator.pop(context, e),
-        ),
-      )
-          .toList(),
-    ),
-  );
-}
-
-class _Pill extends StatelessWidget {
-  final String label;
-  final Color background;
-  final Color textColor;
-
-  const _Pill({
-    required this.label,
-    required this.background,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: background,
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        color: textColor,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF5B4FCF), width: 2),
       ),
-    ),
-  );
-}
-
-class _CounterChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _CounterChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 14, color: Colors.white),
-      const SizedBox(width: 4),
-      Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ],
-  );
-}
-
-class _SelectedFileRow extends StatelessWidget {
-  final String fileName;
-  final String fileSize;
-  final VoidCallback? onRemove;
-
-  const _SelectedFileRow({
-    required this.fileName,
-    required this.fileSize,
-    this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0F000000),
-          blurRadius: 8,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.video_file_rounded, color: Color(0xFF5B5FEF)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                fileName,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                fileSize,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
-        ),
-        InkWell(
-          onTap: onRemove,
-          child: const Icon(
-            Icons.cancel_rounded,
-            color: Color(0xFFEF4444),
-          ),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }
