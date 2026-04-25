@@ -1,10 +1,12 @@
-import '../../features/faculty/screens/faculty_dashboard_screen.dart';
-import '../../features/student/screens/student_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/faculty/screens/faculty_dashboard_screen.dart';
+import '../../features/faculty/screens/upload_material_screen.dart';
+import '../../features/faculty/screens/upload_video_screen.dart';
+import '../../features/student/screens/student_dashboard_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../constants/route_constants.dart';
 
@@ -12,7 +14,7 @@ class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
     _subscription = ref.listen<AuthStateModel>(
       authProvider,
-      (_, __) => notifyListeners(),
+          (_, __) => notifyListeners(),
     );
   }
 
@@ -75,11 +77,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteConstants.facultyDashboard,
-        builder: (context, state) => const FacultyDashboardScreen()
+        builder: (context, state) => const FacultyDashboardScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.uploadVideo,
+        builder: (context, state) => const UploadVideoScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.uploadMaterial,
+        builder: (context, state) => const UploadMaterialScreen(),
       ),
       GoRoute(
         path: RouteConstants.studentDashboard,
-        builder: (context, state) => const StudentDashboardScreen()
+        builder: (context, state) => const StudentDashboardScreen(),
       ),
     ],
   );
