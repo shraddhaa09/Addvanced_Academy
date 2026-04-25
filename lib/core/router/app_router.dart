@@ -1,3 +1,5 @@
+import '../../features/faculty/screens/faculty_dashboard_screen.dart';
+import '../../features/student/screens/student_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,15 +75,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteConstants.facultyDashboard,
-        builder: (context, state) => const _PlaceholderScreen(
-          title: 'Faculty Dashboard',
-        ),
+        builder: (context, state) => const FacultyDashboardScreen()
       ),
       GoRoute(
         path: RouteConstants.studentDashboard,
-        builder: (context, state) => const _PlaceholderScreen(
-          title: 'Student Dashboard',
-        ),
+        builder: (context, state) => const StudentDashboardScreen()
       ),
     ],
   );
