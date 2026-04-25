@@ -5,10 +5,11 @@ class RouteConstants {
   static const String adminDashboard = '/admin';
   static const String facultyDashboard = '/faculty';
 
-  //student
+  static const String uploadVideo = '/faculty/upload-video';
+  static const String uploadMaterial = '/faculty/upload-material';
+
   static const String studentDashboard = '/student';
 
-  //tests
   static const String assignedTests = '/student/tests';
   static const String testSelection = '/student/test-selection';
 
