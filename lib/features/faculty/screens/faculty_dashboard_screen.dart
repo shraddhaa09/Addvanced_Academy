@@ -311,7 +311,7 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
 
   Widget _buildActionTile(BuildContext context, String title, IconData icon, Color color, String route) {
     return GestureDetector(
-      onTap: () => context.push(route),
+      onTap: () => context.go(route),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

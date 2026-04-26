@@ -119,6 +119,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: FacultyDashboardScreen(),
                 ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.uploadVideo,
+                    builder: (context, state) => const UploadVideoScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.uploadMaterial,
+                    builder: (context, state) => const UploadMaterialScreen(),
+                  ),
+                ],
               ),
             ],
           ),
