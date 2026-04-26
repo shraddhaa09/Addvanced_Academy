@@ -1,66 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
+import '../../../providers/auth_provider.dart';
 
-class StudentDashboardScreen extends StatelessWidget {
+class StudentDashboardScreen extends ConsumerWidget {
   const StudentDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     final dashboardItems = <_DashboardItem>[
       _DashboardItem(
         title: 'Tests',
         icon: Icons.assignment_rounded,
-        onTap: () => context.go(RouteConstants.assignedTests),
+        route: RouteConstants.assignedTests,
       ),
       _DashboardItem(
         title: 'Video Lectures',
         icon: Icons.play_circle_fill_rounded,
-        onTap: () => context.go(RouteConstants.videoSubjects),
+        route: RouteConstants.videoSubjects,
       ),
       _DashboardItem(
         title: 'Study Material',
         icon: Icons.menu_book_rounded,
-        onTap: () => context.go(RouteConstants.materialSubjects),
+        route: RouteConstants.materialSubjects,
       ),
       _DashboardItem(
         title: 'Syllabus',
         icon: Icons.picture_as_pdf_rounded,
-        onTap: () => context.go(RouteConstants.syllabus),
+        route: RouteConstants.syllabus,
       ),
       _DashboardItem(
         title: 'Timetable',
         icon: Icons.calendar_today_rounded,
-        onTap: () => context.go(RouteConstants.studentTimetable),
+        route: RouteConstants.studentTimetable,
       ),
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
+
+      /// APP BAR
       appBar: AppBar(
         title: const Text('Student Dashboard'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () async {
+              await ref.read(authProvider.notifier).signOut();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
       ),
+
+      /// BODY
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: GridView.builder(
-            itemCount: dashboardItems.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.05,
-            ),
-            itemBuilder: (context, index) {
-              final item = dashboardItems[index];
+          child: Column(
+            children: [
+              /// HEADER (future: student.name, batch)
+              _HeaderCard(
+                email: authState.email ?? '',
+              ),
 
-              return _StudentDashboardTile(
-                title: item.title,
-                icon: item.icon,
-                onTap: item.onTap,
-              );
-            },
+              const SizedBox(height: 20),
+
+              /// GRID
+              Expanded(
+                child: GridView.builder(
+                  itemCount: dashboardItems.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.05,
+                  ),
+                  itemBuilder: (context, index) {
+                    final item = dashboardItems[index];
+
+                    return _StudentDashboardTile(
+                      title: item.title,
+                      icon: item.icon,
+                      onTap: () => context.go(item.route),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -68,6 +100,57 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 }
 
+/// HEADER CARD (extend later with students table)
+class _HeaderCard extends StatelessWidget {
+  final String email;
+
+  const _HeaderCard({required this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5B5FEF), Color(0xFF4B4FD6)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.person, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// GRID TILE
 class _StudentDashboardTile extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -84,29 +167,29 @@ class _StudentDashboardTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: colorScheme.surface,
-      borderRadius: BorderRadius.circular(20),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       elevation: 2,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 42,
+                size: 40,
                 color: colorScheme.primary,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -116,14 +199,15 @@ class _StudentDashboardTile extends StatelessWidget {
   }
 }
 
+/// MODEL
 class _DashboardItem {
   final String title;
   final IconData icon;
-  final VoidCallback onTap;
+  final String route;
 
   const _DashboardItem({
     required this.title,
     required this.icon,
-    required this.onTap,
+    required this.route,
   });
 }
