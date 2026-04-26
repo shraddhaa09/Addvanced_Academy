@@ -7,27 +7,19 @@ import '../../features/auth/screens/login_screen.dart';
 
 // FACULTY
 import '../../features/faculty/screens/faculty_dashboard_screen.dart';
+import '../../features/faculty/screens/faculty_materials_screen.dart';
+import '../../features/faculty/screens/faculty_profile_screen.dart';
+import '../../features/faculty/screens/faculty_schedule_screen.dart';
 import '../../features/faculty/screens/upload_material_screen.dart';
 import '../../features/faculty/screens/upload_video_screen.dart';
-
-// STUDENT
 import '../../features/student/screens/student_dashboard_screen.dart';
-
-
-import '../../features/test/screens/assigned_tests_screen.dart';
-import '../../features/test/screens/test_selection_screen.dart'; 
-import '../../features/test/screens/chapter_selection_screen.dart';
-import '../../features/test/screens/test_confirmation_screen.dart';
-import '../../features/test/screens/test_engine_screen.dart';
-import '../../features/test/screens/result_screen.dart';
-import '../../features/test/screens/answer_review_screen.dart';
-
-// PROVIDER
 import '../../providers/auth_provider.dart';
 
 // CONSTANTS
 import '../constants/route_constants.dart';
 
+
+// ---------------- ROUTER REFRESH ----------------
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
     _subscription = ref.listen<AuthStateModel>(
@@ -52,17 +44,20 @@ final routerRefreshNotifierProvider = Provider<RouterRefreshNotifier>((ref) {
   return notifier;
 });
 
+
+// ---------------- APP ROUTER ----------------
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(routerRefreshNotifierProvider);
 
   return GoRouter(
     initialLocation: RouteConstants.login,
     refreshListenable: refreshNotifier,
-
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isLoggedIn = authState.isAuthenticated;
-      final isLoginRoute = state.matchedLocation == RouteConstants.login;
+      final path = state.uri.path;
+
+      final isLoginRoute = path == RouteConstants.login;
 
       if (!isLoggedIn) {
         return isLoginRoute ? null : RouteConstants.login;
@@ -83,22 +78,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
-
-    routes: [
-      // AUTH
+    routes: <RouteBase>[
       GoRoute(
         path: RouteConstants.login,
         builder: (context, state) => const LoginScreen(),
       ),
-
-      // ADMIN
       GoRoute(
         path: RouteConstants.adminDashboard,
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: Text('Admin Dashboard'))),
+        builder: (context, state) => const _PlaceholderScreen(
+          title: 'Admin Dashboard',
+        ),
       ),
-
-      // FACULTY
       GoRoute(
         path: RouteConstants.facultyDashboard,
         builder: (context, state) => const FacultyDashboardScreen(),
@@ -111,8 +101,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteConstants.uploadMaterial,
         builder: (context, state) => const UploadMaterialScreen(),
       ),
-
-      // STUDENT
       GoRoute(
         path: RouteConstants.studentDashboard,
         builder: (context, state) => const StudentDashboardScreen(),
@@ -150,3 +138,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _PlaceholderScreen extends ConsumerWidget {
+  final String title;
+
+  const _PlaceholderScreen({
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              await ref.read(authProvider.notifier).signOut();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: Center(
+        child: Text(title),
+      ),
+    );
+  }
+}

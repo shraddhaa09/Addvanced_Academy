@@ -1,19 +1,11 @@
 class RouteConstants {
   // AUTH
   static const String login = '/login';
+  static const String adminDashboard = '/admin';
+  static const String facultyDashboard = '/faculty';
 
-  // DASHBOARDS
-  static const String adminDashboard = '/admin-dashboard';
-  static const String facultyDashboard = '/faculty-dashboard';
-  static const String studentDashboard = '/student-dashboard';
-
-  // ===========================
-  // ADMIN MODULE
-  // ===========================
-  static const String studentRegistration = '/student-registration';
-  static const String studentDatabase = '/student-database';
-
-  static const String facultyRegistration = '/faculty-registration';
+  static const String uploadVideo = '/faculty/upload-video';
+  static const String uploadMaterial = '/faculty/upload-material';
 
   static const String questionBank = '/question-bank';
   static const String addQuestion = '/add-question';
