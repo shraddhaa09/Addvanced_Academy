@@ -3,10 +3,19 @@ class RouteConstants {
 
   static const String login = '/login';
   static const String adminDashboard = '/admin';
-  static const String facultyDashboard = '/faculty';
+  static const String facultyDashboard = '/faculty/dashboard';
+  static const String facultySchedule = '/faculty/schedule';
+  static const String facultyMaterials = '/faculty/materials';
+  static const String facultyProfile = '/faculty/profile';
 
-  static const String uploadVideo = '/faculty/upload-video';
-  static const String uploadMaterial = '/faculty/upload-material';
+  static const String uploadVideo = 'upload-video';
+  static const String uploadMaterial = 'upload-material';
+  static const String editUpload = 'edit-upload';
+
+  static const String personalDetails = 'personal-details';
+  static const String mySubjects = 'my-subjects';
+  static const String uploadHistory = 'upload-history';
+  static const String helpSupport = 'help-support';
 
   static const String studentDashboard = '/student';
 

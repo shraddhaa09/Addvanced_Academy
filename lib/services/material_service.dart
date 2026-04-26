@@ -1,63 +1,52 @@
 import 'dart:io';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../models/study_material_model.dart';
 
 class MaterialService {
   final SupabaseClient _client;
-
   MaterialService(this._client);
 
   Future<String> uploadMaterialFile({
     required File file,
-    required String subject,
-    required String chapter,
     required String facultyId,
+    required String subjectId,
+    required String chapterId,
   }) async {
     final fileName = file.path.split('/').last;
-    final path = '$subject/$chapter/${facultyId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+    final path =
+        'materials/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
     await _client.storage.from('study-materials').upload(path, file);
-    return _client.storage.from('study-materials').getPublicUrl(path);
+    return path;
   }
 
-  Future<StudyMaterialModel> createStudyMaterial({
+  Future<Map<String, dynamic>> createStudyMaterial({
     required String facultyId,
-    required String subject,
-    required String chapter,
+    required String subjectId,
+    required String chapterId,
     required String title,
-    required String fileUrl,
+    required String storagePath,
     String? description,
-    String? materialType,
-    bool visibleToStudents = true,
-    String? fileSize,
+    required String materialType,
+    required bool isVisible,
+    int? fileSizeKb,
   }) async {
     final payload = {
       'faculty_id': facultyId,
-      'subject': subject,
-      'chapter': chapter,
+      'subject_id': subjectId,
+      'chapter_id': chapterId,
       'title': title,
-      'file_url': fileUrl,
+      'storage_path': storagePath,
       'description': description,
       'material_type': materialType,
-      'visible_to_students': visibleToStudents,
-      'file_size': fileSize,
+      'is_visible': isVisible,
+      'file_size_kb': fileSizeKb,
     };
 
-    final response = await _client.from('study_materials').insert(payload).select().single();
-    return StudyMaterialModel.fromJson(response);
+    final response =
+    await _client.from('study_materials').insert(payload).select().single();
+
+    return Map<String, dynamic>.from(response as Map);
   }
 
-  Future<List<StudyMaterialModel>> fetchRecentMaterials(String facultyId) async {
-    final response = await _client
-        .from('study_materials')
-        .select()
-        .eq('faculty_id', facultyId)
-        .order('uploaded_at', ascending: false);
 
-    return (response as List)
-        .map((item) => StudyMaterialModel.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
 }

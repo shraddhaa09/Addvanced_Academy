@@ -2,59 +2,48 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/video_lecture_model.dart';
-
 class VideoService {
   final SupabaseClient _client;
-
   VideoService(this._client);
 
   Future<String> uploadVideoFile({
     required File file,
-    required String subject,
     required String facultyId,
+    required String subjectId,
+    required String chapterId,
   }) async {
     final fileName = file.path.split('/').last;
-    final path = '$subject/${facultyId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
-
+    final path = 'videos/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
     await _client.storage.from('video-lectures').upload(path, file);
-    return _client.storage.from('video-lectures').getPublicUrl(path);
+    return path;
   }
 
-  Future<VideoLectureModel> createVideoLecture({
+  Future<Map<String, dynamic>> createVideoLecture({
     required String facultyId,
-    required String subject,
+    required String subjectId,
+    required String chapterId,
     required String title,
-    required String videoUrl,
+    required String storagePath,
     String? description,
-    String? chapter,
-    bool visibleToStudents = true,
-    String? duration,
+    required bool isVisible,
+    int? fileSizeKb,
+    int? durationSec,
   }) async {
     final payload = {
       'faculty_id': facultyId,
-      'subject': subject,
+      'subject_id': subjectId,
+      'chapter_id': chapterId,
       'title': title,
-      'video_url': videoUrl,
+      'storage_path': storagePath,
       'description': description,
-      'chapter': chapter,
-      'visible_to_students': visibleToStudents,
-      'duration': duration,
+      'is_visible': isVisible,
+      'file_size_kb': fileSizeKb,
+      'duration_sec': durationSec,
     };
 
     final response = await _client.from('video_lectures').insert(payload).select().single();
-    return VideoLectureModel.fromJson(response);
+    return Map<String, dynamic>.from(response as Map);
   }
 
-  Future<List<VideoLectureModel>> fetchRecentUploads(String facultyId) async {
-    final response = await _client
-        .from('video_lectures')
-        .select()
-        .eq('faculty_id', facultyId)
-        .order('uploaded_at', ascending: false);
 
-    return (response as List)
-        .map((item) => VideoLectureModel.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
 }

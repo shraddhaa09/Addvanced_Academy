@@ -1,40 +1,46 @@
 class VideoLectureModel {
   final String? id;
   final String facultyId;
-  final String subject;
+  final String subjectId;
+  final String chapterId;
   final String title;
-  final String videoUrl;
-  final DateTime? uploadedAt;
   final String? description;
-  final String? chapter;
-  final bool visibleToStudents;
-  final String? duration;
+  final String storagePath;
+  final int? durationSec;
+  final int? fileSizeKb;
+  final bool isVisible;
+  final DateTime? uploadedAt;
+  final DateTime? updatedAt;
 
   const VideoLectureModel({
     this.id,
     required this.facultyId,
-    required this.subject,
+    required this.subjectId,
+    required this.chapterId,
     required this.title,
-    required this.videoUrl,
-    this.uploadedAt,
     this.description,
-    this.chapter,
-    this.visibleToStudents = true,
-    this.duration,
+    required this.storagePath,
+    this.durationSec,
+    this.fileSizeKb,
+    this.isVisible = true,
+    this.uploadedAt,
+    this.updatedAt,
   });
 
   factory VideoLectureModel.fromJson(Map<String, dynamic> json) {
     return VideoLectureModel(
       id: json['id'] as String?,
       facultyId: json['faculty_id'] as String? ?? '',
-      subject: json['subject'] as String? ?? '',
+      subjectId: json['subject_id'] as String? ?? '',
+      chapterId: json['chapter_id'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      videoUrl: json['video_url'] as String? ?? '',
-      uploadedAt: json['uploaded_at'] == null ? null : DateTime.tryParse(json['uploaded_at'].toString()),
       description: json['description'] as String?,
-      chapter: json['chapter'] as String?,
-      visibleToStudents: json['visible_to_students'] as bool? ?? true,
-      duration: json['duration'] as String?,
+      storagePath: json['storage_path'] as String? ?? '',
+      durationSec: json['duration_sec'] as int?,
+      fileSizeKb: json['file_size_kb'] as int?,
+      isVisible: json['is_visible'] as bool? ?? true,
+      uploadedAt: json['uploaded_at'] == null ? null : DateTime.tryParse(json['uploaded_at'].toString()),
+      updatedAt: json['updated_at'] == null ? null : DateTime.tryParse(json['updated_at'].toString()),
     );
   }
 
@@ -42,14 +48,16 @@ class VideoLectureModel {
     return {
       if (id != null) 'id': id,
       'faculty_id': facultyId,
-      'subject': subject,
+      'subject_id': subjectId,
+      'chapter_id': chapterId,
       'title': title,
-      'video_url': videoUrl,
-      if (uploadedAt != null) 'uploaded_at': uploadedAt!.toIso8601String(),
       if (description != null) 'description': description,
-      if (chapter != null) 'chapter': chapter,
-      'visible_to_students': visibleToStudents,
-      if (duration != null) 'duration': duration,
+      'storage_path': storagePath,
+      if (durationSec != null) 'duration_sec': durationSec,
+      if (fileSizeKb != null) 'file_size_kb': fileSizeKb,
+      'is_visible': isVisible,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt!.toIso8601String(),
+      if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
     };
   }
 }
