@@ -12,7 +12,16 @@ import '../../features/faculty/screens/faculty_profile_screen.dart';
 import '../../features/faculty/screens/faculty_schedule_screen.dart';
 import '../../features/faculty/screens/upload_material_screen.dart';
 import '../../features/faculty/screens/upload_video_screen.dart';
+import '../../features/faculty/screens/faculty_personal_details_screen.dart';
+import '../../features/faculty/screens/faculty_subjects_screen.dart';
+import '../../features/faculty/screens/faculty_upload_history_screen.dart';
+import '../../features/faculty/screens/faculty_support_screen.dart';
+import '../../features/faculty/widgets/faculty_scaffold.dart';
+
+// STUDENT
 import '../../features/student/screens/student_dashboard_screen.dart';
+
+// PROVIDERS
 import '../../providers/auth_provider.dart';
 
 // CONSTANTS
@@ -24,7 +33,7 @@ class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
     _subscription = ref.listen<AuthStateModel>(
       authProvider,
-      (_, __) => notifyListeners(),
+          (_, __) => notifyListeners(),
     );
   }
 
@@ -52,6 +61,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: RouteConstants.login,
     refreshListenable: refreshNotifier,
+
+    // ---------------- REDIRECT ----------------
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isLoggedIn = authState.isAuthenticated;
@@ -78,73 +89,132 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
-    routes: <RouteBase>[
+
+    routes: [
+
+      // ===== LOGIN =====
       GoRoute(
         path: RouteConstants.login,
         builder: (context, state) => const LoginScreen(),
       ),
+
+      // ===== ADMIN =====
       GoRoute(
         path: RouteConstants.adminDashboard,
-        builder: (context, state) => const _PlaceholderScreen(
-          title: 'Admin Dashboard',
-        ),
+        builder: (context, state) =>
+        const _PlaceholderScreen(title: 'Admin Dashboard'),
       ),
-      GoRoute(
-        path: RouteConstants.facultyDashboard,
-        builder: (context, state) => const FacultyDashboardScreen(),
+
+      // =========================================================
+      // FACULTY SHELL (CORRECT VERSION)
+      // =========================================================
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return FacultyScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+
+          // DASHBOARD
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyDashboard,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyDashboardScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.uploadVideo,
+                    builder: (context, state) => const UploadVideoScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.uploadMaterial,
+                    builder: (context, state) => const UploadMaterialScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // SCHEDULE
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultySchedule,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyScheduleScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // MATERIALS
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyMaterials,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyMaterialsScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // PROFILE
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyProfile,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyProfileScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.personalDetails,
+                    pageBuilder: (context, state) => const NoTransitionPage(
+                      child: FacultyPersonalDetailsScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.mySubjects,
+                    pageBuilder: (context, state) => const NoTransitionPage(
+                      child: FacultySubjectsScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.uploadHistory,
+                    pageBuilder: (context, state) => const NoTransitionPage(
+                      child: FacultyUploadHistoryScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.helpSupport,
+                    pageBuilder: (context, state) => const NoTransitionPage(
+                      child: FacultySupportScreen(),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
-      GoRoute(
-        path: RouteConstants.uploadVideo,
-        builder: (context, state) => const UploadVideoScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.uploadMaterial,
-        builder: (context, state) => const UploadMaterialScreen(),
-      ),
+
+      // ===== STUDENT =====
       GoRoute(
         path: RouteConstants.studentDashboard,
         builder: (context, state) => const StudentDashboardScreen(),
-      ),
-
-      // ================= TEST FLOW (FIXED) =================
-      GoRoute(
-        path: RouteConstants.assignedTests,
-        builder: (context, state) => const AssignedTestsScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.testSelection,
-        builder: (context, state) => const TestSelectionScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.chapterSelection,
-        builder: (context, state) => const ChapterSelectionScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.testConfirmation,
-        builder: (context, state) => const TestConfirmationScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.testEngine,
-        builder: (context, state) => const TestEngineScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.result,
-        builder: (context, state) => const ResultScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.answerReview,
-        builder: (context, state) => const AnswerReviewScreen(),
       ),
     ],
   );
 });
 
+
+// ---------------- PLACEHOLDER ----------------
 class _PlaceholderScreen extends ConsumerWidget {
   final String title;
 
-  const _PlaceholderScreen({
-    required this.title,
-  });
+  const _PlaceholderScreen({required this.title});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -160,9 +230,7 @@ class _PlaceholderScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text(title),
-      ),
+      body: Center(child: Text(title)),
     );
   }
 }

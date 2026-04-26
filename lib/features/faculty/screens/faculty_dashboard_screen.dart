@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
@@ -30,12 +29,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         leadingWidth: 68,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: GestureDetector(
-            onTap: () {},
-            child: const CircleAvatar(
-              backgroundColor: Color(0xFFD9DDF7),
-              child: Icon(Icons.person, color: Color(0xFF1A1A2E)),
-            ),
+          child: const CircleAvatar(
+            backgroundColor: Color(0xFFD9DDF7),
+            child: Icon(Icons.person, color: Color(0xFF1A1A2E)),
           ),
         ),
         titleSpacing: 0,
@@ -76,14 +72,13 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
                   Container(
                     height: 170,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF5B5FEF), Color(0xFF4B4FD6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -93,21 +88,18 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Align(
-                              alignment: Alignment.topLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: const Text(
-                                  'Active Term',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'Active Term',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
@@ -139,29 +131,37 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                           child: Icon(
                             Icons.school_rounded,
                             size: 100,
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: Colors.white.withOpacity(0.18),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+
+                  const SizedBox(height: 20),
+
                   _FacultyActionTile(
                     title: 'Upload Video Lecture',
                     subtitle: 'Share new video content with students',
                     icon: Icons.play_circle_fill_rounded,
                     iconBackground: const Color(0xFFEEECFD),
                     iconColor: const Color(0xFF5B5FEF),
-                    onTap: () => context.go(RouteConstants.uploadVideo),
+                    onTap: () => context.go(
+                      '${RouteConstants.facultyDashboard}/${RouteConstants.uploadVideo}',
+                    ),
                   ),
+
                   const SizedBox(height: 12),
+
                   _FacultyActionTile(
                     title: 'Upload Study Material',
                     subtitle: 'Add PDFs, notes, or research papers',
                     icon: Icons.menu_book_rounded,
                     iconBackground: const Color(0xFFE6F4F1),
                     iconColor: const Color(0xFF2BB5A0),
-                    onTap: () => context.go(RouteConstants.uploadMaterial),
+                    onTap: () => context.go(
+                      '${RouteConstants.facultyDashboard}/${RouteConstants.uploadMaterial}',
+                    ),
                   ),
                 ],
               ),
@@ -169,10 +169,11 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
           ],
         ),
       ),
+
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
+          border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
         ),
         child: SafeArea(
           child: SizedBox(
@@ -213,6 +214,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
   }
 }
 
+
+// ================= FIX: ADD THESE CLASSES =================
+
 class _FacultyActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -232,61 +236,19 @@ class _FacultyActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 1,
-      shadowColor: Colors.black12,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: SizedBox(
-          height: 80,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: const Color(0xFF1A1A2E),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6B7280),
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
-              ],
-            ),
-          ),
-        ],
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: iconBackground,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iconColor),
       ),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
     );
   }
 }
@@ -306,26 +268,16 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? const Color(0xFF5B5FEF) : const Color(0xFF9CA3AF);
+    final color = active ? const Color(0xFF5B5FEF) : Colors.grey;
+
     return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        width: 72,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color),
+          Text(label, style: TextStyle(color: color)),
+        ],
       ),
     );
   }
