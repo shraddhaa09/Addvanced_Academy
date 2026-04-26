@@ -2,24 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+// AUTH
 import '../../features/auth/screens/login_screen.dart';
+
+// FACULTY
 import '../../features/faculty/screens/faculty_dashboard_screen.dart';
 import '../../features/faculty/screens/faculty_materials_screen.dart';
 import '../../features/faculty/screens/faculty_profile_screen.dart';
 import '../../features/faculty/screens/faculty_schedule_screen.dart';
 import '../../features/faculty/screens/upload_material_screen.dart';
 import '../../features/faculty/screens/upload_video_screen.dart';
-import '../../features/faculty/screens/edit_upload_screen.dart';
 import '../../features/faculty/screens/faculty_personal_details_screen.dart';
 import '../../features/faculty/screens/faculty_subjects_screen.dart';
 import '../../features/faculty/screens/faculty_upload_history_screen.dart';
 import '../../features/faculty/screens/faculty_support_screen.dart';
 import '../../features/faculty/widgets/faculty_scaffold.dart';
 
+// STUDENT
 import '../../features/student/screens/student_dashboard_screen.dart';
-import '../../models/faculty_upload_model.dart';
 
+// PROVIDERS
 import '../../providers/auth_provider.dart';
+
+// CONSTANTS
 import '../constants/route_constants.dart';
 
 
@@ -102,7 +107,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // =========================================================
-      // FACULTY SHELL (MAIN APP AREA)
+      // FACULTY SHELL
       // =========================================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -122,11 +127,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: RouteConstants.uploadVideo,
-                    builder: (context, state) => const UploadVideoScreen(),
+                    builder: (context, state) =>
+                    const UploadVideoScreen(),
                   ),
                   GoRoute(
                     path: RouteConstants.uploadMaterial,
-                    builder: (context, state) => const UploadMaterialScreen(),
+                    builder: (context, state) =>
+                    const UploadMaterialScreen(),
                   ),
                 ],
               ),
@@ -165,8 +172,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: FacultyProfileScreen(),
                 ),
-
-                // optional sub-pages (kept safe but clean)
                 routes: [
                   GoRoute(
                     path: RouteConstants.personalDetails,
@@ -206,7 +211,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ===== STUDENT =====
       GoRoute(
         path: RouteConstants.studentDashboard,
-        builder: (context, state) => const StudentDashboardScreen(),
+        builder: (context, state) =>
+        const StudentDashboardScreen(),
       ),
     ],
   );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/route_constants.dart';
 import '../../../providers/faculty_providers.dart';
 import '../../../models/faculty_upload_model.dart';
 

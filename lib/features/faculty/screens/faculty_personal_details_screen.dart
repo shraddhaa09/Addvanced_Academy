@@ -90,7 +90,7 @@ class FacultyPersonalDetailsScreen extends ConsumerWidget {
                   label: 'Primary Subject',
                   value: profile.subject,
                 ),
-                
+
                 const SizedBox(height: 24),
                 const Text(
                   'Membership',
@@ -102,16 +102,15 @@ class FacultyPersonalDetailsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
+                // ✅ FIXED HERE
                 _buildDetailTile(
                   icon: Icons.calendar_today_outlined,
                   label: 'Joined Academy',
-                  value: profile.createdAt != null 
-                      ? DateFormat('MMMM dd, yyyy').format(profile.createdAt!)
-                      : 'N/A',
+                  value: DateFormat('MMMM dd, yyyy').format(profile.createdAt),
                 ),
 
                 const SizedBox(height: 32),
-                
+
                 // Admin Note
                 Container(
                   padding: const EdgeInsets.all(16),
