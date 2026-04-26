@@ -124,11 +124,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ),
                 routes: [
                   GoRoute(
-                    path: RouteConstants.uploadVideo,
+                    path: 'upload-video',
                     builder: (context, state) => const UploadVideoScreen(),
                   ),
                   GoRoute(
-                    path: RouteConstants.uploadMaterial,
+                    path: 'upload-material',
                     builder: (context, state) => const UploadMaterialScreen(),
                   ),
                 ],
