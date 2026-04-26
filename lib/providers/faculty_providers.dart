@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -62,13 +63,17 @@ final currentFacultyIdProvider = FutureProvider.autoDispose<String?>((ref) async
   if (authId == null) return null;
   
   try {
+    // According to the schema: auth.users.id -> academy.users.auth_id -> academy.users.id (which is faculty_id)
     final response = await Supabase.instance.client
+        .schema('academy')
         .from('users')
         .select('id')
         .eq('auth_id', authId)
-        .single();
-    return response['id'] as String;
+        .maybeSingle();
+
+    return response?['id'] as String?;
   } catch (e) {
+    debugPrint('Error in currentFacultyIdProvider: $e');
     return null;
   }
 });

@@ -9,6 +9,7 @@ class FacultyService {
   Future<FacultyModel?> fetchProfile(String userId) async {
     try {
       final response = await _client
+          .schema('academy')
           .from('faculty')
           .select()
           .eq('id', userId)
@@ -24,12 +25,14 @@ class FacultyService {
     try {
 
       final videoResponse = await _client
+          .schema('academy')
           .from('video_lectures')
           .select('id')
           .eq('faculty_id', facultyId)
           .count(CountOption.exact);
 
       final materialResponse = await _client
+          .schema('academy')
           .from('study_materials')
           .select('id')
           .eq('faculty_id', facultyId)

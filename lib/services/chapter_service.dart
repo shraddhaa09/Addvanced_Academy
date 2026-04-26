@@ -6,11 +6,25 @@ class ChapterService {
   ChapterService(this._client);
 
   Future<List<ChapterModel>> fetchChaptersBySubject(String subjectId) async {
-    final response = await _client
-        .from('chapters')
-        .select()
-        .eq('subject_id', subjectId)
-        .order('chapter_no');
-    return (response as List).map((json) => ChapterModel.fromJson(json)).toList();
+    try {
+      final response = await _client
+          .schema('academy')
+          .from('chapters')
+          .select('id, subject_id, name, chapter_no, created_at')
+          .eq('subject_id', subjectId)
+          .order('chapter_no');
+
+      if (response is! List) {
+        throw Exception('Unexpected response format: Expected a list but got ${response.runtimeType}');
+      }
+
+      return response
+          .map((json) => ChapterModel.fromJson(Map<String, dynamic>.from(json as Map)))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to fetch chapters: ${e.message}');
+    } catch (e) {
+      throw Exception('An unexpected error occurred while fetching chapters: $e');
+    }
   }
 }
