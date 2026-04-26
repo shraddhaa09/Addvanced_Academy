@@ -90,7 +90,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
 
-    // ---------------- ROUTES ----------------
     routes: [
 
       // ===== LOGIN =====
@@ -107,16 +106,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // =========================================================
-      // FACULTY SHELL
+      // FACULTY SHELL (CORRECT VERSION)
       // =========================================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return FacultyScaffold(navigationShell: navigationShell);
         },
-
         branches: [
 
-          // ---------------- DASHBOARD ----------------
+          // DASHBOARD
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -127,20 +125,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: RouteConstants.uploadVideo,
-                    builder: (context, state) =>
-                    const UploadVideoScreen(),
+                    builder: (context, state) => const UploadVideoScreen(),
                   ),
                   GoRoute(
                     path: RouteConstants.uploadMaterial,
-                    builder: (context, state) =>
-                    const UploadMaterialScreen(),
+                    builder: (context, state) => const UploadMaterialScreen(),
                   ),
                 ],
               ),
             ],
           ),
 
-          // ---------------- SCHEDULE ----------------
+          // SCHEDULE
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -152,7 +148,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // ---------------- MATERIALS ----------------
+          // MATERIALS
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -164,7 +160,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // ---------------- PROFILE ----------------
+          // PROFILE
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -175,29 +171,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: RouteConstants.personalDetails,
-                    pageBuilder: (context, state) =>
-                    const NoTransitionPage(
+                    pageBuilder: (context, state) => const NoTransitionPage(
                       child: FacultyPersonalDetailsScreen(),
                     ),
                   ),
                   GoRoute(
                     path: RouteConstants.mySubjects,
-                    pageBuilder: (context, state) =>
-                    const NoTransitionPage(
+                    pageBuilder: (context, state) => const NoTransitionPage(
                       child: FacultySubjectsScreen(),
                     ),
                   ),
                   GoRoute(
                     path: RouteConstants.uploadHistory,
-                    pageBuilder: (context, state) =>
-                    const NoTransitionPage(
+                    pageBuilder: (context, state) => const NoTransitionPage(
                       child: FacultyUploadHistoryScreen(),
                     ),
                   ),
                   GoRoute(
                     path: RouteConstants.helpSupport,
-                    pageBuilder: (context, state) =>
-                    const NoTransitionPage(
+                    pageBuilder: (context, state) => const NoTransitionPage(
                       child: FacultySupportScreen(),
                     ),
                   ),
@@ -211,8 +203,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ===== STUDENT =====
       GoRoute(
         path: RouteConstants.studentDashboard,
-        builder: (context, state) =>
-        const StudentDashboardScreen(),
+        builder: (context, state) => const StudentDashboardScreen(),
       ),
     ],
   );
