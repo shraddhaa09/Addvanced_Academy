@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/announcement_providers.dart';
+import '../../../models/announcement_model.dart';
 
 class StudentDashboardScreen extends ConsumerWidget {
   const StudentDashboardScreen({super.key});
@@ -11,6 +14,7 @@ class StudentDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final announcementsAsync = ref.watch(studentAnnouncementsProvider);
 
     final dashboardItems = <_DashboardItem>[
       _DashboardItem(
@@ -59,42 +63,155 @@ class StudentDashboardScreen extends ConsumerWidget {
 
       /// BODY
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+        child: RefreshIndicator(
+          onRefresh: () async => ref.invalidate(studentAnnouncementsProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              /// HEADER (future: student.name, batch)
+              /// HEADER
               _HeaderCard(
                 email: authState.email ?? '',
               ),
 
-              const SizedBox(height: 20),
+              /// ANNOUNCEMENTS ROW
+              announcementsAsync.when(
+                data: (announcements) {
+                  if (announcements.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Important Notices',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 140,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: announcements.length,
+                          itemBuilder: (context, index) {
+                            return _StudentAnnouncementCard(announcement: announcements[index]);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+
+              const SizedBox(height: 24),
 
               /// GRID
-              Expanded(
-                child: GridView.builder(
-                  itemCount: dashboardItems.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.05,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = dashboardItems[index];
-
-                    return _StudentDashboardTile(
-                      title: item.title,
-                      icon: item.icon,
-                      onTap: () => context.go(item.route),
-                    );
-                  },
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: dashboardItems.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.05,
                 ),
+                itemBuilder: (context, index) {
+                  final item = dashboardItems[index];
+
+                  return _StudentDashboardTile(
+                    title: item.title,
+                    icon: item.icon,
+                    onTap: () => context.go(item.route),
+                  );
+                },
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StudentAnnouncementCard extends StatelessWidget {
+  final AnnouncementModel announcement;
+
+  const _StudentAnnouncementCard({required this.announcement});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  announcement.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                timeago.format(announcement.createdAt, locale: 'en_short'),
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Text(
+              announcement.message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.3),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.person, size: 12, color: Color(0xFF5B4FCF)),
+              const SizedBox(width: 4),
+              Text(
+                'Professor', // Future: map facultyId to name
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+              if (announcement.subject != null) ...[
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5B4FCF).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    announcement.subject!,
+                    style: const TextStyle(color: Color(0xFF5B4FCF), fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -12,14 +12,19 @@ import '../../features/faculty/screens/faculty_profile_screen.dart';
 import '../../features/faculty/screens/faculty_schedule_screen.dart';
 import '../../features/faculty/screens/upload_material_screen.dart';
 import '../../features/faculty/screens/upload_video_screen.dart';
+import '../../features/faculty/screens/edit_upload_screen.dart';
 import '../../features/faculty/screens/faculty_personal_details_screen.dart';
 import '../../features/faculty/screens/faculty_subjects_screen.dart';
 import '../../features/faculty/screens/faculty_upload_history_screen.dart';
 import '../../features/faculty/screens/faculty_support_screen.dart';
+import '../../features/faculty/screens/faculty_announcement_screen.dart';
 import '../../features/faculty/widgets/faculty_scaffold.dart';
 
 // STUDENT
 import '../../features/student/screens/student_dashboard_screen.dart';
+
+// MODELS
+import '../../models/faculty_upload_model.dart';
 
 // PROVIDERS
 import '../../providers/auth_provider.dart';
@@ -130,6 +135,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'upload-material',
                     builder: (context, state) => const UploadMaterialScreen(),
+                  ),
+                  GoRoute(
+                    path: 'edit-upload',
+                    builder: (context, state) => EditUploadScreen(
+                      upload: state.extra as FacultyUploadModel,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'announcements',
+                    builder: (context, state) => const FacultyAnnouncementScreen(),
                   ),
                 ],
               ),

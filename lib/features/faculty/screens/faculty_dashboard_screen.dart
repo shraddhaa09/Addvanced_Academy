@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import '../../../providers/faculty_providers.dart';
+import '../widgets/recent_upload_tile.dart';
 
 import '../../../core/constants/route_constants.dart';
+import '../../../models/faculty_upload_model.dart';
 
-class FacultyDashboardScreen extends StatelessWidget {
+class FacultyDashboardScreen extends ConsumerWidget {
   const FacultyDashboardScreen({super.key});
 
   String _greeting() {
@@ -14,10 +19,10 @@ class FacultyDashboardScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
-      appBar: _DashboardAppBar(),
+      appBar: const _DashboardAppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -71,11 +76,11 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Divider(height: 1, thickness: 1, color: const Color(0xFFEEEEEE)),
       ),
       leadingWidth: 72,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 20),
+      leading: const Padding(
+        padding: EdgeInsets.only(left: 20),
         child: CircleAvatar(
-          backgroundColor: const Color(0xFFEEECFD),
-          child: const Icon(Icons.person_rounded, color: Color(0xFF5B4FCF), size: 20),
+          backgroundColor: Color(0xFFEEECFD),
+          child: Icon(Icons.person_rounded, color: Color(0xFF5B4FCF), size: 20),
         ),
       ),
       titleSpacing: 8,
@@ -89,10 +94,31 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1A1A2E)),
-          onPressed: () {},
+        Padding(
           padding: const EdgeInsets.only(right: 8),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.campaign_rounded, color: Color(0xFF1A1A2E), size: 24),
+                onPressed: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
+                tooltip: 'Manage Notices',
+              ),
+              Positioned(
+                right: 8,
+                top: 12,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5B4FCF),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -312,11 +338,13 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-class _RecentUploadsSection extends StatelessWidget {
+class _RecentUploadsSection extends ConsumerWidget {
   const _RecentUploadsSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(3));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -325,7 +353,7 @@ class _RecentUploadsSection extends StatelessWidget {
           children: [
             const _SectionLabel('Recent Uploads'),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.go(RouteConstants.facultyMaterials),
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(0, 0),
@@ -343,8 +371,76 @@ class _RecentUploadsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        _EmptyUploadsState(),
+        uploadsAsync.when(
+          data: (uploads) {
+            if (uploads.isEmpty) return const _EmptyUploadsState();
+            return Column(
+              children: uploads.map((upload) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RecentUploadCard(upload: upload),
+              )).toList(),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error loading uploads: $e')),
+        ),
       ],
+    );
+  }
+}
+
+class _RecentUploadCard extends StatelessWidget {
+  const _RecentUploadCard({required this.upload});
+  final FacultyUploadModel upload;
+
+  @override
+  Widget build(BuildContext context) {
+    final isVideo = upload.contentType == 'video';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isVideo ? const Color(0xFF5B4FCF).withOpacity(0.08) : const Color(0xFF1E8C6E).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isVideo ? Icons.play_circle_outline : Icons.picture_as_pdf,
+              color: isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  upload.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  upload.subject,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            upload.uploadedAt != null ? timeago.format(upload.uploadedAt!) : 'Unknown',
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+          ),
+        ],
+      ),
     );
   }
 }

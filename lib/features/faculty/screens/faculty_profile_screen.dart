@@ -416,6 +416,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
+    final qualification = _qualController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name cannot be empty.')),
@@ -425,7 +426,10 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
 
     setState(() => _saving = true);
     try {
-      await Future.delayed(const Duration(milliseconds: 600));
+      await ref.read(facultyServiceProvider).updateProfile(
+        name: name,
+        qualification: qualification,
+      );
       ref.invalidate(facultyProfileProvider);
 
       if (mounted) {
@@ -434,11 +438,11 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
           const SnackBar(content: Text('Profile updated successfully.')),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not save changes. Please try again.'),
+            content: Text('Could not save changes: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );

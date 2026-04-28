@@ -50,7 +50,15 @@ class _EditUploadScreenState extends ConsumerState<EditUploadScreen> {
         isVisible: _isVisible,
       );
 
-      ref.invalidate(recentFacultyUploadsProvider);
+      // Invalidate the list and stats to ensure UI updates
+      ref.invalidate(recentFacultyUploadsProvider(null));
+      ref.invalidate(facultyStatsProvider);
+
+      // Also invalidate view counts in case visibility/stats changed
+      final facultyId = await ref.read(currentFacultyIdProvider.future);
+      if (facultyId != null) {
+        ref.invalidate(contentViewCountsProvider(facultyId));
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

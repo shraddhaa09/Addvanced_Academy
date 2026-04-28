@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MaterialService {
@@ -76,6 +77,22 @@ class MaterialService {
       throw Exception('Database Error: ${e.message} (Code: ${e.code})');
     } catch (e) {
       throw Exception('Unexpected Database Error: $e');
+    }
+  }
+
+  Future<void> recordView({
+    required String materialId,
+    required String studentId,
+  }) async {
+    try {
+      await _client.schema('academy').from('content_views').insert({
+        'content_id': materialId,
+        'content_type': 'material',
+        'student_id': studentId,
+      });
+    } catch (e) {
+      // Silently fail as view recording shouldn't block the user
+      debugPrint('Error recording material view: $e');
     }
   }
 }
