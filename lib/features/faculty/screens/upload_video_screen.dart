@@ -126,9 +126,17 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
       setState(() {
         if (kIsWeb) {
-          _fileData = result.files.single.bytes;
+          final bytes = result.files.single.bytes;
+          if (bytes == null) {
+            throw Exception('Failed to read file bytes');
+          }
+          _fileData = bytes;
         } else {
-          _fileData = io.File(result.files.single.path!);
+          final path = result.files.single.path;
+          if (path == null) {
+            throw Exception('File path is null');
+          }
+          _fileData = io.File(path);
         }
         _fileName = name;
         _fileSizeLabel = sizeLabel;
@@ -198,6 +206,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   void _showSuccessSheet() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.white,
@@ -230,6 +239,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
   void _showErrorSheet(String message) {
     showModalBottomSheet(
+      isScrollControlled: true,
       context: context,
       isDismissible: false,
       enableDrag: false,
@@ -795,7 +805,9 @@ class _SuccessSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SafeArea(
+  child: SingleChildScrollView(
+    child: Padding(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -855,6 +867,8 @@ class _SuccessSheet extends StatelessWidget {
           ),
         ],
       ),
+    )
+  )
     );
   }
 }
@@ -885,11 +899,13 @@ class _ErrorSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return SafeArea(
+        child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
           Container(
             width: 56,
             height: 56,
@@ -945,6 +961,7 @@ class _ErrorSheet extends StatelessWidget {
           ),
         ],
       ),
+      ))
     );
   }
 }

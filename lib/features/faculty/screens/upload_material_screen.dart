@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'dart:io' as io;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +27,11 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
   ChapterModel? _selectedChapter;
   String _materialType = 'pdf';
   bool _isVisible = true;
-  File? _selectedFile;
+
+  dynamic _selectedFile; // Uint8List (web) or io.File (native)
+  String? _fileName;
+  int? _fileSizeBytes;
+
   bool _isUploading = false;
 
   @override
@@ -39,16 +45,29 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
+      withData: kIsWeb,
     );
-    if (result != null && result.files.single.path != null) {
+
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.single;
+
       setState(() {
-        _selectedFile = File(result.files.single.path!);
+        if (kIsWeb) {
+          _selectedFile = file.bytes;
+        } else {
+          _selectedFile = io.File(file.path!);
+        }
+        _fileName = file.name;
+        _fileSizeBytes = file.size;
       });
     }
   }
 
   Future<void> _upload() async {
-    if (!_formKey.currentState!.validate() || _selectedSubject == null || _selectedChapter == null || _selectedFile == null) {
+    if (!_formKey.currentState!.validate() ||
+        _selectedSubject == null ||
+        _selectedChapter == null ||
+        _selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields and select a file')),
       );
@@ -67,15 +86,14 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
 
       final materialService = ref.read(materialServiceProvider);
 
-      // Upload file
       final storagePath = await materialService.uploadMaterialFile(
-        file: _selectedFile!,
+        file: _selectedFile,
+        fileName: _fileName!,
         facultyId: facultyId,
         subjectId: _selectedSubject!.id,
         chapterId: _selectedChapter!.id,
       );
 
-      // Save record
       await materialService.createStudyMaterial(
         facultyId: facultyId,
         subjectId: _selectedSubject!.id,
@@ -84,11 +102,10 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
         storagePath: storagePath,
         description: _descriptionController.text.trim(),
         materialType: _materialType,
-        fileSizeKb: (_selectedFile!.lengthSync() / 1024).round(),
+        fileSizeKb: (_fileSizeBytes! / 1024).round(),
         isVisible: _isVisible,
       );
 
-      // Refresh recent uploads
       ref.invalidate(recentFacultyUploadsProvider);
 
       if (mounted) {
@@ -115,7 +132,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsProvider);
-    final chaptersAsync = _selectedSubject != null 
+    final chaptersAsync = _selectedSubject != null
         ? ref.watch(chaptersProvider(_selectedSubject!.id))
         : const AsyncValue.data(<ChapterModel>[]);
 
@@ -136,7 +153,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // File Selection
                     GestureDetector(
                       onTap: _pickFile,
                       child: Container(
@@ -145,7 +161,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: _selectedFile == null
                             ? Column(
@@ -170,7 +186,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                                   const Icon(Icons.check_circle, size: 48, color: Color(0xFF1E8C6E)),
                                   const SizedBox(height: 8),
                                   Text(
-                                    _selectedFile!.path.split('/').last,
+                                    _fileName ?? '',
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                     textAlign: TextAlign.center,
                                   ),
@@ -185,7 +201,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Form Fields
                     TextFormField(
                       controller: _titleController,
                       decoration: _inputDecoration('Material Title'),
@@ -221,7 +236,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                         onChanged: (val) {
                           setState(() {
                             _selectedSubject = val;
-                            _selectedChapter = null; // Reset chapter
+                            _selectedChapter = null;
                           });
                         },
                         validator: (val) => val == null ? 'Required' : null,

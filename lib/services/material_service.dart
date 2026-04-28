@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'dart:io' as io;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MaterialService {
@@ -6,17 +7,37 @@ class MaterialService {
   MaterialService(this._client);
 
   Future<String> uploadMaterialFile({
-    required File file,
+    required dynamic file, // Uint8List or io.File
+    required String fileName,
     required String facultyId,
     required String subjectId,
     required String chapterId,
   }) async {
-    final fileName = file.path.split('/').last;
     final path =
         'materials/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
-    await _client.storage.from('study-materials').upload(path, file);
-    return path;
+    try {
+      if (file is Uint8List) {
+        await _client.storage.from('study-materials').uploadBinary(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else if (file is io.File) {
+        await _client.storage.from('study-materials').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else {
+        throw Exception('Unsupported file type: ${file.runtimeType}');
+      }
+      return path;
+    } on StorageException catch (e) {
+      throw Exception('Storage upload failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Unexpected upload error: $e');
+    }
   }
 
   Future<Map<String, dynamic>> createStudyMaterial({
@@ -42,11 +63,19 @@ class MaterialService {
       'file_size_kb': fileSizeKb,
     };
 
-    final response =
-    await _client.from('study_materials').insert(payload).select().single();
+    try {
+      final response = await _client
+          .schema('academy')
+          .from('study_materials')
+          .insert(payload)
+          .select()
+          .single();
 
-    return Map<String, dynamic>.from(response as Map);
+      return Map<String, dynamic>.from(response as Map);
+    } on PostgrestException catch (e) {
+      throw Exception('Database Error: ${e.message} (Code: ${e.code})');
+    } catch (e) {
+      throw Exception('Unexpected Database Error: $e');
+    }
   }
-
-
 }
