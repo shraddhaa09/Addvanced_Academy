@@ -1,5 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
+import 'dart:io' as io;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class VideoService {
@@ -8,19 +9,39 @@ class VideoService {
 
   Future<String> uploadVideoFile({
     required String fileName,
-    required dynamic file, // File (io) or Uint8List
+    required Object file, // ✅ fixed type
     required String facultyId,
     required String subjectId,
     required String chapterId,
   }) async {
-    final path = 'videos/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+    final safeFileName = fileName.replaceAll(RegExp(r'[^\w\.\-]'), '_');
+
+    final path =
+        'videos/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
 
     try {
-      await _client.storage.from('video-lectures').upload(
-        path,
-        file,
-        fileOptions: const FileOptions(upsert: false),
-      );
+      if (file is Uint8List) {
+        // Web
+        await _client.storage
+            .from('video-lectures')
+            .uploadBinary(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else if (file is io.File) {
+        // Mobile/Desktop
+        await _client.storage
+            .from('video-lectures')
+            .upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else {
+        throw Exception('Unsupported file type: ${file.runtimeType}');
+      }
+
       return path;
     } on StorageException catch (e) {
       throw Exception('Storage upload failed: ${e.message}');
@@ -29,42 +50,42 @@ class VideoService {
     }
   }
 
-  Future<Map<String, dynamic>> createVideoLecture({
-    required String facultyId,
-    required String subjectId,
-    required String chapterId,
-    required String title,
-    required String storagePath,
-    String? description,
-    required bool isVisible,
-    int? fileSizeKb,
-    int? durationSec,
-  }) async {
-    final payload = {
-      'faculty_id': facultyId,
-      'subject_id': subjectId,
-      'chapter_id': chapterId,
-      'title': title,
-      'storage_path': storagePath,
-      'description': description,
-      'is_visible': isVisible,
-      'file_size_kb': fileSizeKb,
-      'duration_sec': durationSec,
-    };
+Future<Map<String, dynamic>> createVideoLecture({
+  required String facultyId,
+  required String subjectId,
+  required String chapterId,
+  required String title,
+  required String storagePath,
+  String? description,
+  required bool isVisible,
+  int? fileSizeKb,
+  int? durationSec,
+}) async {
+  final payload = {
+    'faculty_id': facultyId,
+    'subject_id': subjectId,
+    'chapter_id': chapterId,
+    'title': title,
+    'storage_path': storagePath,
+    'description': description,
+    'is_visible': isVisible,
+    'file_size_kb': fileSizeKb,
+    'duration_sec': durationSec,
+  };
 
-    try {
-      final response = await _client
-          .schema('academy')
-          .from('video_lectures')
-          .insert(payload)
-          .select()
-          .single();
+  try {
+    final response = await _client
+        .schema('academy')
+        .from('video_lectures')
+        .insert(payload)
+        .select()
+        .single();
 
-      return Map<String, dynamic>.from(response as Map);
-    } on PostgrestException catch (e) {
-      throw Exception('Database Error: ${e.message} (Code: ${e.code})');
-    } catch (e) {
-      throw Exception('Unexpected Database Error: $e');
-    }
+    return Map<String, dynamic>.from(response as Map);
+  } on PostgrestException catch (e) {
+    throw Exception('Database Error: ${e.message} (Code: ${e.code})');
+  } catch (e) {
+    throw Exception('Unexpected Database Error: $e');
   }
+}
 }
