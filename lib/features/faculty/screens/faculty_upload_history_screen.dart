@@ -26,8 +26,9 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
 
   @override
   Widget build(BuildContext context) {
-    final uploadsAsync = ref.watch(recentFacultyUploadsProvider);
+    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
     final statsAsync = ref.watch(facultyStatsProvider);
+    final facultyIdAsync = ref.watch(currentFacultyIdProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -95,35 +96,52 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
 
               // Scrollable List
               Expanded(
-                child: uploadsAsync.when(
-                  data: (uploads) {
-                    final filtered = uploads.where((u) {
-                      final matchesSearch = u.title.toLowerCase().contains(_searchQuery) || 
-                                          u.subject.toLowerCase().contains(_searchQuery);
-                      final matchesFilter = _filterType == 'all' || u.contentType == _filterType;
-                      return matchesSearch && matchesFilter;
-                    }).toList();
+                child: facultyIdAsync.when(
+                  data: (facultyId) {
+                    if (facultyId == null) return const SizedBox.shrink();
+                    
+                    final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId));
 
-                    if (filtered.isEmpty) {
-                      return _buildEmptyState();
-                    }
+                    return viewCountsAsync.when(
+                      data: (viewCounts) {
+                        return uploadsAsync.when(
+                          data: (uploads) {
+                            final filtered = uploads.where((u) {
+                              final matchesSearch = u.title.toLowerCase().contains(_searchQuery) || 
+                                                  u.subject.toLowerCase().contains(_searchQuery);
+                              final matchesFilter = _filterType == 'all' || u.contentType == _filterType;
+                              return matchesSearch && matchesFilter;
+                            }).toList();
 
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(24),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final item = filtered[index];
-                        return RecentUploadTile(
-                          upload: item,
-                          onEdit: () {
-                            context.push(
-                              '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}', 
-                              extra: item,
+                            if (filtered.isEmpty) {
+                              return _buildEmptyState();
+                            }
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(24),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final item = filtered[index];
+                                return RecentUploadTile(
+                                  upload: item,
+                                  viewCount: viewCounts[item.id],
+                                  onEdit: () {
+                                    context.push(
+                                      '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}', 
+                                      extra: item,
+                                    );
+                                  },
+                                  onDelete: () => _handleDelete(context, item),
+                                );
+                              },
                             );
                           },
-                          onDelete: () => _handleDelete(context, item),
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, __) => Center(child: Text('Error: $e')),
                         );
                       },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, __) => Center(child: Text('Error: $e')),
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),

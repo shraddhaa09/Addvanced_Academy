@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
+import '../../../models/faculty_upload_model.dart';
 import '../../../providers/faculty_providers.dart';
 import '../widgets/recent_upload_tile.dart';
 
@@ -53,6 +54,7 @@ class _FacultyMaterialsScreenState
     extends ConsumerState<FacultyMaterialsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _activeFilter = 'all';
 
   @override
   void dispose() {
@@ -67,9 +69,10 @@ class _FacultyMaterialsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final uploadsAsync = ref.watch(recentFacultyUploadsProvider);
+    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
     final profileAsync = ref.watch(facultyProfileProvider);
     final statsAsync = ref.watch(facultyStatsProvider);
+    final facultyIdAsync = ref.watch(currentFacultyIdProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -107,7 +110,7 @@ class _FacultyMaterialsScreenState
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                _buildList(uploadsAsync),
+                _buildList(uploadsAsync, facultyIdAsync),
                 // Extra space so FAB never covers last item
                 const SizedBox(height: 88),
               ],
@@ -152,7 +155,11 @@ class _FacultyMaterialsScreenState
                 ),
               ],
             ),
-            const Icon(Icons.notifications_none),
+            IconButton(
+              icon: const Icon(Icons.campaign_outlined, color: Color(0xFF1A1A2E)),
+              onPressed: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
+              tooltip: 'Notices',
+            ),
           ],
         );
       },
@@ -164,15 +171,21 @@ class _FacultyMaterialsScreenState
           _ShimmerBox(width: 120, height: 16, borderRadius: 8),
         ],
       ),
-      error: (_, __) => const Row(
+      error: (_, __) => Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 20,
             backgroundColor: Color(0xFFEDE9FF),
             child: Icon(Icons.person, color: Color(0xFF5B4FCF)),
           ),
-          SizedBox(width: 12),
-          Text('Hello, Professor', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(width: 12),
+          const Text('Hello, Professor', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.campaign_outlined, color: Color(0xFF1A1A2E)),
+            onPressed: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
+            tooltip: 'Notices',
+          ),
         ],
       ),
     );
@@ -294,53 +307,82 @@ class _FacultyMaterialsScreenState
 
   // ── List ──────────────────────────────────────────────────────────────────
 
-  Widget _buildList(AsyncValue uploadsAsync) {
-    return uploadsAsync.when(
-      data: (uploads) {
-        // Filter to materials only, then apply search
-        final materials = uploads
-            .where((u) => u.contentType == 'material')
-            .where((u) =>
-        _searchQuery.isEmpty ||
-            u.title.toLowerCase().contains(_searchQuery))
-            .toList();
+  Widget _buildList(AsyncValue<List<FacultyUploadModel>> uploadsAsync, AsyncValue<String?> facultyIdAsync) {
+    return facultyIdAsync.when(
+      data: (facultyId) {
+        if (facultyId == null) return const SizedBox.shrink();
 
-        if (materials.isEmpty) return _EmptyState(query: _searchQuery);
+        final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId));
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: materials.length,
-          itemBuilder: (context, index) {
-            final item = materials[index];
-            return RecentUploadTile(
-              upload: item,
-              onEdit: () => context.push(
-                '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}',
-                extra: item,
-              ),
-              onDelete: () => _confirmDelete(context, item),
+        return viewCountsAsync.when(
+          data: (viewCounts) {
+            return uploadsAsync.when(
+              data: (uploads) {
+                // Filter to materials only, then apply search and type filter
+                final materials = uploads
+                    .where((u) => u.contentType == 'material')
+                    .where((u) =>
+                        _searchQuery.isEmpty ||
+                        u.title.toLowerCase().contains(_searchQuery))
+                    .where((u) => 
+                        _activeFilter == 'all' || 
+                        u.contentType == _activeFilter)
+                    .toList();
+
+                if (materials.isEmpty) return _EmptyState(query: _searchQuery);
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: materials.length,
+                  itemBuilder: (context, index) {
+                    final item = materials[index];
+                    return RecentUploadTile(
+                      upload: item,
+                      viewCount: viewCounts[item.id],
+                      onEdit: () => context.push(
+                        '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}',
+                        extra: item,
+                      ),
+                      onDelete: () => _confirmDelete(context, item),
+                    );
+                  },
+                );
+              },
+              loading: () => _buildShimmerList(),
+              error: (e, _) => _buildError(e),
             );
           },
+          loading: () => _buildShimmerList(),
+          error: (e, _) => _buildError(e),
         );
       },
-      loading: () => Column(
-        children: List.generate(
-          3,
-              (_) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ShimmerBox(width: double.infinity, height: 76, borderRadius: 12),
-          ),
+      loading: () => _buildShimmerList(),
+      error: (e, _) => _buildError(e),
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return Column(
+      children: List.generate(
+        3,
+        (_) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child:
+              _ShimmerBox(width: double.infinity, height: 76, borderRadius: 12),
         ),
       ),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          child: Text(
-            'Could not load uploads.\n$e',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black45),
-          ),
+    );
+  }
+
+  Widget _buildError(Object e) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Text(
+          'Could not load uploads.\n$e',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.black45),
         ),
       ),
     );
@@ -406,7 +448,7 @@ class _FacultyMaterialsScreenState
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete. Please try again.'),
+            content: const Text('Failed to delete. Please try again.'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -510,6 +552,7 @@ class _EmptyState extends StatelessWidget {
 /// Animates opacity between 0.4 and 1.0 to simulate a loading skeleton.
 class _ShimmerBox extends StatefulWidget {
   const _ShimmerBox({
+    super.key,
     required this.width,
     required this.height,
     required this.borderRadius,

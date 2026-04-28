@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class FacultySupportScreen extends StatelessWidget {
   const FacultySupportScreen({super.key});
@@ -53,6 +54,30 @@ class FacultySupportScreen extends StatelessWidget {
             _buildFAQ('How do I upload high-quality videos?', 'We recommend using H.264 MP4 format with a resolution of 1080p for the best student experience.'),
             _buildFAQ('Can I schedule my own classes?', 'No, all scheduling is handled by the administration to avoid classroom conflicts.'),
             _buildFAQ('How long does it take for materials to appear?', 'Materials appear instantly for students once the "Visible" toggle is on.'),
+
+            const SizedBox(height: 48),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text(
+              'Developer Tools',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.bug_report, color: Colors.orange),
+              title: const Text('Test Crashlytics', style: TextStyle(fontSize: 14)),
+              subtitle: const Text('Triggers a fatal crash to verify setup', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                // Warning: This will close the app
+                FirebaseCrashlytics.instance.crash();
+              },
+              tileColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -82,7 +107,7 @@ class FacultySupportScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5B4FCF).withValues(alpha: 0.1),
+                  color: const Color(0xFF5B4FCF).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: const Color(0xFF5B4FCF), size: 24),

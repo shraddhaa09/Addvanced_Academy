@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/faculty_providers.dart';
+import '../../../models/timetable_model.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers — extract to core/utils/faculty_ui_helpers.dart to share across screens
@@ -42,7 +43,7 @@ IconData _subjectIcon(String? subject) {
 // ---------------------------------------------------------------------------
 
 class _BatchData {
-  const _BatchData({
+  _BatchData({
     required this.name,
     required this.time,
     required this.days,
@@ -55,21 +56,6 @@ class _BatchData {
   final Color color;
 }
 
-const _demoBatches = [
-  _BatchData(
-    name: 'Morning Batch (Grade 12)',
-    time: '08:30 AM – 10:30 AM',
-    days: 'Mon, Wed, Fri',
-    color: Color(0xFF1565C0),
-  ),
-  _BatchData(
-    name: 'Evening Batch (JEE Mains)',
-    time: '04:00 PM – 06:00 PM',
-    days: 'Tue, Thu, Sat',
-    color: Color(0xFF6A1B9A),
-  ),
-];
-
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -77,9 +63,31 @@ const _demoBatches = [
 class FacultySubjectsScreen extends ConsumerWidget {
   const FacultySubjectsScreen({super.key});
 
+  List<_BatchData> _groupScheduleIntoBatches(List<TimetableModel> schedule) {
+    // Group by subject and time slots
+    final grouped = <String, List<TimetableModel>>{};
+    for (final item in schedule) {
+      final key = '${item.subjectName}_${item.startTime}_${item.endTime}';
+      grouped.putIfAbsent(key, () => []).add(item);
+    }
+
+    return grouped.entries.map((entry) {
+      final items = entry.value;
+      final first = items.first;
+      final days = items.map((i) => i.dayOfWeek.substring(0, 3)).join(', ');
+      return _BatchData(
+        name: '${first.subjectName} Batch',
+        time: '${first.startTime} – ${first.endTime}',
+        days: days,
+        color: _subjectColor(first.subjectName),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(facultyProfileProvider);
+    final scheduleAsync = ref.watch(facultyScheduleProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -98,53 +106,79 @@ class FacultySubjectsScreen extends ConsumerWidget {
           child: Divider(height: 1, color: Colors.grey.shade100),
         ),
       ),
-      body: profileAsync.when(
-        data: (profile) {
-          if (profile == null) {
-            return const _ErrorState(message: 'Profile not found.');
-          }
+      body: SafeArea(
+        child: profileAsync.when(
+          data: (profile) => scheduleAsync.when(
+            data: (schedule) {
+              if (profile == null) {
+                return const _ErrorState(message: 'Profile not found.');
+              }
 
-          final subject = profile.subject as String?;
-          final subjectColor = _subjectColor(subject);
+              final subject = profile.subject as String?;
+              final subjectColor = _subjectColor(subject);
+              final batches = _groupScheduleIntoBatches(schedule);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Specialization ─────────────────────────────────────
-                const _SectionHeader(title: 'Your Specialization'),
-                const SizedBox(height: 14),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Specialization ─────────────────────────────────────
+                    const _SectionHeader(title: 'Your Specialization'),
+                    const SizedBox(height: 14),
 
-                _SubjectCard(
-                  subject: subject ?? 'Not assigned',
-                  color: subjectColor,
+                    _SubjectCard(
+                      subject: subject ?? 'Not assigned',
+                      color: subjectColor,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // ── Assigned Batches ───────────────────────────────────
+                    const _SectionHeader(title: 'Assigned Batches'),
+                    const SizedBox(height: 14),
+
+                    if (batches.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFF0F0F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.calendar_today_outlined, size: 40, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No batches assigned',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ...batches.map((batch) => _BatchTile(batch: batch)),
+                    const SizedBox(height: 32),
+
+                    // ── Admin note ─────────────────────────────────────────
+                    const _AdminNote(
+                      message:
+                      'Your subject specialization and batch allocations are '
+                          'managed by the academic coordinator. To request a batch '
+                          'change or report a discrepancy, please contact the admin office.',
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                const SizedBox(height: 32),
-
-                // ── Assigned Batches ───────────────────────────────────
-                const _SectionHeader(title: 'Assigned Batches'),
-                const SizedBox(height: 14),
-
-                ..._demoBatches.map(
-                      (batch) => _BatchTile(batch: batch),
-                ),
-                const SizedBox(height: 32),
-
-                // ── Admin note ─────────────────────────────────────────
-                const _AdminNote(
-                  message:
-                  'Your subject specialization and batch allocations are '
-                      'managed by the academic coordinator. To request a batch '
-                      'change or report a discrepancy, please contact the admin office.',
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
-          );
-        },
-        loading: () => const _LoadingSkeleton(),
-        error: (e, _) => _ErrorState(message: 'Could not load subjects.\n$e'),
+              );
+            },
+            loading: () => const _LoadingSkeleton(),
+            error: (e, _) => _ErrorState(message: 'Could not load schedule.\n$e'),
+          ),
+          loading: () => const _LoadingSkeleton(),
+          error: (e, _) => _ErrorState(message: 'Could not load profile.\n$e'),
+        ),
       ),
     );
   }

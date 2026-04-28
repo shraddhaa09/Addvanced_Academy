@@ -26,6 +26,7 @@ class RouteConstants {
   static const String uploadHistory = 'upload-history';
   static const String helpSupport = 'help-support';
   static const String editUpload = 'edit-upload';
+  static const String facultyAnnouncements = 'announcements';
 
   // ===========================
   // STUDENT

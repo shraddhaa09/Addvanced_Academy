@@ -88,4 +88,20 @@ Future<Map<String, dynamic>> createVideoLecture({
     throw Exception('Unexpected Database Error: $e');
   }
 }
+
+  Future<void> recordView({
+    required String videoId,
+    required String studentId,
+  }) async {
+    try {
+      await _client.schema('academy').from('content_views').insert({
+        'content_id': videoId,
+        'content_type': 'video',
+        'student_id': studentId,
+      });
+    } catch (e) {
+      // Silently fail as view recording shouldn't block the user
+      debugPrint('Error recording video view: $e');
+    }
+  }
 }
