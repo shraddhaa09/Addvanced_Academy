@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
+import 'core/widgets/connectivity_banner.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -15,6 +16,9 @@ class App extends ConsumerWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
+      builder: (context, child) {
+        return ConnectivityBannerWrapper(child: child!);
+      },
     );
   }
 }
