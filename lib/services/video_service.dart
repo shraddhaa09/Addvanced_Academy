@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/app_exceptions.dart';
 
 class VideoService {
+  VideoService([SupabaseClient? client])
+      : _client = client ?? Supabase.instance.client;
+
   final SupabaseClient _client;
-  VideoService(this._client);
 
   Future<String> uploadVideoFile({
     required String fileName,
@@ -113,6 +115,30 @@ class VideoService {
       if (e is DuplicateUploadException) rethrow;
       throw Exception('Unexpected Database Error: $e');
     }
+  }
+
+  Future<List<VideoLectureModel>> fetchVideosBySubject(String subjectName) async {
+    try {
+      final response = await _client
+          .schema('academy')
+          .from('video_lectures')
+          .select()
+          .eq('is_visible', true)
+          // Since subject_id in table might be a UUID, we might need a join or filter by name if that's what's passed
+          // But for now matching the existing screen logic which passes subject name
+          .ilike('subject_id', '%$subjectName%') // Temporary hack if subjectId is being used as name
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => VideoLectureModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch videos: $e');
+    }
+  }
+
+  String getPublicUrl(String storagePath) {
+    return _client.storage.from('video-lectures').getPublicUrl(storagePath);
   }
 
   Future<void> recordView({

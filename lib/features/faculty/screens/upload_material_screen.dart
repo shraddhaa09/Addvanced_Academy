@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'dart:io' as io;
 
@@ -32,7 +31,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
   dynamic _selectedFile; // Uint8List (web) or io.File (native)
   String? _fileName;
   int? _fileSizeBytes;
-
   bool _isUploading = false;
 
   @override
@@ -75,30 +73,29 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       return;
     }
 
-    setState(() {
-      _isUploading = true;
-    });
+    setState(() => _isUploading = true);
 
     try {
-      final facultyId = await ref.read(currentFacultyIdProvider.future);
-      if (facultyId == null) {
-        throw Exception('Could not determine faculty ID');
-      }
+      // FIX: Since currentFacultyIdProvider is a FutureProvider, use .valueOrNull
+      final facultyId = ref.read(currentFacultyIdProvider).valueOrNull;
+      if (facultyId == null) throw Exception('Could not determine faculty ID');
 
       final materialService = ref.read(materialServiceProvider);
+      final subjectId = _selectedSubject!.id;
+      final chapterId = _selectedChapter!.id;
 
       final storagePath = await materialService.uploadMaterialFile(
         file: _selectedFile,
         fileName: _fileName!,
         facultyId: facultyId,
-        subjectId: _selectedSubject!.id,
-        chapterId: _selectedChapter!.id,
+        subjectId: subjectId,
+        chapterId: chapterId,
       );
 
       await materialService.createStudyMaterial(
         facultyId: facultyId,
-        subjectId: _selectedSubject!.id,
-        chapterId: _selectedChapter!.id,
+        subjectId: subjectId,
+        chapterId: chapterId,
         title: _titleController.text.trim(),
         storagePath: storagePath,
         description: _descriptionController.text.trim(),
@@ -130,34 +127,29 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.amber.shade800));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-      }
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsProvider);
+
+    // Fix: Correct logic for watching chapters
     final chaptersAsync = _selectedSubject != null
         ? ref.watch(chaptersProvider(_selectedSubject!.id))
         : const AsyncValue.data(<ChapterModel>[]);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5FA),
-      appBar: AppBar(
-        title: const Text('Upload Study Material'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Upload Study Material'), backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0),
       body: _isUploading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E8C6E)))
           : SingleChildScrollView(
@@ -273,37 +265,25 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    SwitchListTile(
-                      title: const Text('Visible to Students'),
-                      subtitle: const Text('Publish immediately after upload'),
-                      value: _isVisible,
-                      onChanged: (val) => setState(() => _isVisible = val),
-                      contentPadding: EdgeInsets.zero,
-                      activeThumbColor: const Color(0xFF1E8C6E),
-                    ),
-                    const SizedBox(height: 32),
+  Widget _buildChapterDropdown(AsyncValue<List<ChapterModel>> async) {
+    return async.when(
+      data: (list) => DropdownButtonFormField<ChapterModel>(
+        value: _selectedChapter,
+        decoration: _inputDecoration('Select Chapter'),
+        items: list.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+        onChanged: (val) => setState(() => _selectedChapter = val),
+      ),
+      loading: () => const LinearProgressIndicator(),
+      error: (e, _) => Text('Error: $e'),
+    );
+  }
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _upload,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E8C6E),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Upload Material',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+  Widget _buildTypeDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _materialType,
+      decoration: _inputDecoration('Material Type'),
+      items: const [DropdownMenuItem(value: 'pdf', child: Text('PDF')), DropdownMenuItem(value: 'image', child: Text('Image'))],
+      onChanged: (val) => setState(() => _materialType = val!),
     );
   }
 
@@ -312,14 +292,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       labelText: label,
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1E8C6E), width: 2),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     );
   }
 }

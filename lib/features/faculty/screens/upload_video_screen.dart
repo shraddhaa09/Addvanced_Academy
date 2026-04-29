@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io' as io;
 
+import '../../../core/errors/app_exceptions.dart';
 import '../../../models/chapter_model.dart';
 import '../../../models/subject_model.dart';
 import '../../../providers/faculty_providers.dart';
@@ -73,7 +74,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
     try {
       final service = ref.read(chapterServiceProvider);
-      final chapters = await service.fetchChaptersBySubject(subject.id);
+      final chapters = await service.fetchChaptersBySubject(subject.id as String);
 
       if (!mounted) return;
       setState(() {
@@ -85,9 +86,22 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       setState(() {
         _chapters = [];
         _isLoadingChapters = false;
-        _chapterError = 'Error: ${e.toString().replaceAll('Exception:', '').trim()}';
+        _chapterError =
+        'Error: ${e.toString().replaceAll('Exception:', '').trim()}';
       });
     }
+  }
+
+
+
+  void _clearFile() {
+    setState(() {
+      _fileData = null;
+      _fileName = null;
+      _fileSizeLabel = null;
+      _fileSizeBytes = null;
+      _fileError = null;
+    });
   }
 
   Future<bool> _onWillPop() async {
@@ -151,23 +165,17 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
     }
   }
 
-  void _clearFile() {
-    setState(() {
-      _fileData = null;
-      _fileName = null;
-      _fileSizeLabel = null;
-      _fileSizeBytes = null;
-      _fileError = null;
-    });
-  }
+
 
   Future<void> _upload() async {
     if (!_formKey.currentState!.validate()) return;
+    // Ensure we have all required selections
     if (_selectedSubject == null || _selectedChapter == null || _fileData == null) return;
 
     setState(() => _isUploading = true);
 
     try {
+      // 1. Get the ID from the provider (await if it's a FutureProvider)
       final facultyId = await ref.read(currentFacultyIdProvider.future);
       if (facultyId == null) throw Exception('Could not determine faculty ID');
 
@@ -179,14 +187,15 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         fileName: _fileName!,
         file: _fileData!,
         facultyId: facultyId,
-        subjectId: _selectedSubject!.id,
-        chapterId: _selectedChapter!.id,
+        subjectId: subjectId,
+        chapterId: chapterId,
       );
 
+      // 4. Create the database record
       await videoService.createVideoLecture(
         facultyId: facultyId,
-        subjectId: _selectedSubject!.id,
-        chapterId: _selectedChapter!.id,
+        subjectId: subjectId,
+        chapterId: chapterId,
         title: _titleController.text.trim(),
         storagePath: storagePath,
         description: _descriptionController.text.trim(),
@@ -194,6 +203,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         isVisible: _isVisible,
       );
 
+      // Refresh the dashboard list
       ref.invalidate(recentFacultyUploadsProvider);
 
       if (!mounted) return;
@@ -216,6 +226,8 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       _showErrorSheet(e.toString());
     }
   }
+
+
 
   void _showSuccessSheet() {
     showModalBottomSheet(

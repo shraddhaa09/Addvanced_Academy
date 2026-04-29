@@ -4,48 +4,188 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
+import '../../../core/widgets/action_card.dart';
+import '../../../core/widgets/hero_banner.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/shimmer_widgets.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/announcement_providers.dart';
+import '../../../providers/student_providers.dart';
 import '../../../models/announcement_model.dart';
+import '../../../models/faculty_upload_model.dart';
 
 class StudentDashboardScreen extends ConsumerWidget {
   const StudentDashboardScreen({super.key});
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
-    final announcementsAsync = ref.watch(studentAnnouncementsProvider);
-
-    final dashboardItems = <_DashboardItem>[
-      _DashboardItem(
-        title: 'Tests',
-        icon: Icons.assignment_rounded,
-        route: RouteConstants.assignedTests,
-      ),
-      _DashboardItem(
-        title: 'Video Lectures',
-        icon: Icons.play_circle_fill_rounded,
-        route: RouteConstants.videoSubjects,
-      ),
-      _DashboardItem(
-        title: 'Study Material',
-        icon: Icons.menu_book_rounded,
-        route: RouteConstants.materialSubjects,
-      ),
-      _DashboardItem(
-        title: 'Syllabus',
-        icon: Icons.picture_as_pdf_rounded,
-        route: RouteConstants.syllabus,
-      ),
-      _DashboardItem(
-        title: 'Timetable',
-        icon: Icons.calendar_today_rounded,
-        route: RouteConstants.studentTimetable,
-      ),
-    ];
+    final profileAsync = ref.watch(studentProfileProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
+      appBar: const _DashboardAppBar(),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(studentAnnouncementsProvider);
+            ref.invalidate(studentRecentUploadsProvider);
+            ref.invalidate(studentProfileProvider);
+          },
+          child: profileAsync.when(
+            data: (profile) => ListView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              children: [
+                _GreetingSection(
+                  greeting: _greeting(),
+                  name: profile?.name ?? 'Student',
+                ),
+                const SizedBox(height: 20),
+                const HeroBanner(
+                  title: 'Academic Session',
+                  subtitle: 'MHT-CET Preparation · 2025–26',
+                ),
+                const SizedBox(height: 28),
+                const _SectionLabel('Quick Actions'),
+                const SizedBox(height: 12),
+                
+                ActionCard(
+                  title: 'Video Lectures',
+                  subtitle: 'Watch recorded classes & tutorials',
+                  icon: Icons.play_circle_fill_rounded,
+                  accentColor: const Color(0xFF5B4FCF),
+                  iconBackground: const Color(0xFFEEECFD),
+                  onTap: () => context.go(RouteConstants.videoSubjects),
+                ),
+                const SizedBox(height: 12),
+                ActionCard(
+                  title: 'Study Materials',
+                  subtitle: 'Access notes, PDFs and resources',
+                  icon: Icons.menu_book_rounded,
+                  accentColor: const Color(0xFF2BB5A0),
+                  iconBackground: const Color(0xFFE6F4F1),
+                  onTap: () => context.go(RouteConstants.materialSubjects),
+                ),
+                const SizedBox(height: 12),
+                ActionCard(
+                  title: 'Assigned Tests',
+                  subtitle: 'Check and take your pending exams',
+                  icon: Icons.assignment_rounded,
+                  accentColor: const Color(0xFFF59E0B),
+                  iconBackground: const Color(0xFFFEF3C7),
+                  onTap: () => context.go(RouteConstants.assignedTests),
+                ),
+                const SizedBox(height: 12),
+                ActionCard(
+                  title: 'Class Timetable',
+                  subtitle: 'View your weekly schedule',
+                  icon: Icons.calendar_today_rounded,
+                  accentColor: const Color(0xFFEF4444),
+                  iconBackground: const Color(0xFFFEE2E2),
+                  onTap: () => context.go(RouteConstants.studentTimetable),
+                ),
+                
+                const SizedBox(height: 28),
+                const _AnnouncementsSection(),
+                
+                const SizedBox(height: 28),
+                const _RecentUploadsSection(),
+              ],
+            ),
+            loading: () => const DashboardSkeleton(),
+            error: (e, _) => Center(child: Text('Error: $e')),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _DashboardAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(64);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Divider(height: 1, thickness: 1, color: const Color(0xFFEEEEEE)),
+      ),
+      leadingWidth: 72,
+      leading: const Padding(
+        padding: EdgeInsets.only(left: 20),
+        child: CircleAvatar(
+          backgroundColor: Color(0xFFEEECFD),
+          child: Icon(Icons.person_rounded, color: Color(0xFF5B4FCF), size: 20),
+        ),
+      ),
+      titleSpacing: 8,
+      title: const Text(
+        'Addvanced Academy',
+        style: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontWeight: FontWeight.w700,
+          fontSize: 17,
+          letterSpacing: -0.3,
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.campaign_rounded, color: Color(0xFF1A1A2E), size: 24),
+                onPressed: () => context.push('/student/announcements'),
+                tooltip: 'Notices',
+              ),
+              Positioned(
+                right: 8,
+                top: 12,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5B4FCF),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Color(0xFF1A1A2E), size: 24),
+            onPressed: () => ProviderScope.containerOf(context).read(authProvider.notifier).signOut(),
+            tooltip: 'Logout',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GreetingSection extends StatelessWidget {
+  final String greeting;
+  final String name;
+
+  const _GreetingSection({required this.greeting, required this.name});
 
       /// APP BAR
       appBar: AppBar(
@@ -66,86 +206,82 @@ class StudentDashboardScreen extends ConsumerWidget {
                 )
               : const Icon(Icons.logout),
           ),
-        ],
-      ),
-
-      /// BODY
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async => ref.invalidate(studentAnnouncementsProvider),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              /// HEADER
-              _HeaderCard(
-                email: authState.email ?? '',
-              ),
-
-              /// ANNOUNCEMENTS ROW
-              announcementsAsync.when(
-                data: (announcements) {
-                  if (announcements.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Important Notices',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 140,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: announcements.length,
-                          itemBuilder: (context, index) {
-                            return _StudentAnnouncementCard(announcement: announcements[index]);
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 24),
-
-              /// GRID
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: dashboardItems.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.05,
-                ),
-                itemBuilder: (context, index) {
-                  final item = dashboardItems[index];
-
-                  return _StudentDashboardTile(
-                    title: item.title,
-                    icon: item.icon,
-                    onTap: () => context.go(item.route),
-                  );
-                },
-              ),
-            ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Track your progress and study materials.',
+          style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF6B7280),
+            fontWeight: FontWeight.w400,
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF6B7280),
+        letterSpacing: 0.6,
       ),
     );
   }
 }
 
-class _StudentAnnouncementCard extends StatelessWidget {
-  final AnnouncementModel announcement;
+class _AnnouncementsSection extends ConsumerWidget {
+  const _AnnouncementsSection();
 
-  const _StudentAnnouncementCard({required this.announcement});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final announcementsAsync = ref.watch(studentAnnouncementsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel('Important Notices'),
+        const SizedBox(height: 12),
+        announcementsAsync.when(
+          data: (announcements) {
+            if (announcements.isEmpty) {
+              return const AppEmptyState(
+                title: 'No active notices',
+                message: 'You are all caught up with recent academy updates.',
+                icon: Icons.notifications_none_rounded,
+              );
+            }
+            return SizedBox(
+              height: 140,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: announcements.length,
+                itemBuilder: (context, index) {
+                  return _AnnouncementCard(announcement: announcements[index]);
+                },
+              ),
+            );
+          },
+          loading: () => const ShimmerBox(width: double.infinity, height: 140, borderRadius: 14),
+          error: (e, _) => Center(child: Text('Error: $e')),
+        ),
+      ],
+    );
+  }
+}
+
+class _AnnouncementCard extends StatelessWidget {
+  final AnnouncementModel announcement;
+  const _AnnouncementCard({required this.announcement});
 
   @override
   Widget build(BuildContext context) {
@@ -155,15 +291,8 @@ class _StudentAnnouncementCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,145 +323,128 @@ class _StudentAnnouncementCard extends StatelessWidget {
               style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.3),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.person, size: 12, color: Color(0xFF5B4FCF)),
-              const SizedBox(width: 4),
-              Text(
-                'Professor', // Future: map facultyId to name
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w500),
+          if (announcement.subject != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5B4FCF).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
               ),
-              if (announcement.subject != null) ...[
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5B4FCF).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    announcement.subject!,
-                    style: const TextStyle(color: Color(0xFF5B4FCF), fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ],
-          ),
+              child: Text(
+                announcement.subject!,
+                style: const TextStyle(color: Color(0xFF5B4FCF), fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// HEADER CARD (extend later with students table)
-class _HeaderCard extends StatelessWidget {
-  final String email;
+class _RecentUploadsSection extends ConsumerWidget {
+  const _RecentUploadsSection();
 
-  const _HeaderCard({required this.email});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uploadsAsync = ref.watch(studentRecentUploadsProvider(3));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _SectionLabel('Recent Study Material'),
+            TextButton(
+              onPressed: () => context.go(RouteConstants.materialSubjects),
+              child: const Text('View all', style: TextStyle(fontSize: 13, color: Color(0xFF5B4FCF))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        uploadsAsync.when(
+          data: (uploads) {
+            if (uploads.isEmpty) {
+              return const AppEmptyState(
+                title: 'No recent uploads',
+                message: 'Check back later for new study material and videos.',
+                icon: Icons.cloud_off_rounded,
+              );
+            }
+            return Column(
+              children: uploads.map((upload) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RecentUploadCard(upload: upload),
+              )).toList(),
+            );
+          },
+          loading: () => Column(
+            children: List.generate(3, (i) => const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: ShimmerBox(width: double.infinity, height: 72, borderRadius: 12),
+            )),
+          ),
+          error: (e, _) => Center(child: Text('Error: $e')),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentUploadCard extends StatelessWidget {
+  const _RecentUploadCard({required this.upload});
+  final FacultyUploadModel upload;
 
   @override
   Widget build(BuildContext context) {
+    final isVideo = upload.contentType == 'video';
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5B5FEF), Color(0xFF4B4FD6)],
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person, color: Colors.white),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isVideo ? const Color(0xFF5B4FCF).withOpacity(0.08) : const Color(0xFF1E8C6E).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isVideo ? Icons.play_circle_outline : Icons.picture_as_pdf,
+              color: isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E),
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Welcome',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 4),
                 Text(
-                  email,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  upload.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${upload.subject} • ${upload.facultyName ?? "Professor"}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
             ),
+          ),
+          Text(
+            upload.uploadedAt != null ? timeago.format(upload.uploadedAt!) : 'Now',
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
           ),
         ],
       ),
     );
   }
-}
-
-/// GRID TILE
-class _StudentDashboardTile extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _StudentDashboardTile({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 40,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// MODEL
-class _DashboardItem {
-  final String title;
-  final IconData icon;
-  final String route;
-
-  const _DashboardItem({
-    required this.title,
-    required this.icon,
-    required this.route,
-  });
 }

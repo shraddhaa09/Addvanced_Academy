@@ -5,8 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/app_exceptions.dart';
 
 class MaterialService {
+  MaterialService([SupabaseClient? client])
+      : _client = client ?? Supabase.instance.client;
+
   final SupabaseClient _client;
-  MaterialService(this._client);
+
+  static const String _bucketName = 'study-materials';
+  static const String _tableName = 'study_materials';
 
   Future<String> uploadMaterialFile({
     required dynamic file, 
@@ -42,7 +47,7 @@ class MaterialService {
     }
   }
 
-  Future<Map<String, dynamic>> createStudyMaterial({
+  Future<StudyMaterialModel> createStudyMaterial({
     required String facultyId,
     required String subjectId,
     required String chapterId,
@@ -50,8 +55,8 @@ class MaterialService {
     required String storagePath,
     String? description,
     required String materialType,
-    required bool isVisible,
     int? fileSizeKb,
+    required bool isVisible,
   }) async {
     // 1. Deduplication Check
     try {
@@ -79,20 +84,20 @@ class MaterialService {
       'title': title.trim(),
       'storage_path': storagePath,
       'description': description,
+      'storage_path': storagePath,
       'material_type': materialType,
-      'is_visible': isVisible,
       'file_size_kb': fileSizeKb,
-    };
+    });
 
     try {
       final response = await _client
           .schema('academy')
           .from('study_materials')
-          .insert(payload)
+          .insert('payload')
           .select()
           .single();
 
-      return Map<String, dynamic>.from(response as Map);
+      return StudyMaterialModel.fromJson(response);
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw DuplicateUploadException('A material with this title already exists in this subject.');
@@ -102,6 +107,31 @@ class MaterialService {
       if (e is DuplicateUploadException) rethrow;
       throw Exception('Unexpected Database Error: $e');
     }
+  }
+
+  Future<List<StudyMaterialModel>> fetchMaterialsByChapter(String chapterId) async {
+    final response = await _client
+        .schema('academy')
+        .from('study_materials')
+        .select()
+        .eq('chapter_id', chapterId);
+    return (response as List).map((json) => StudyMaterialModel.fromJson(json)).toList();
+  }
+
+  Future<List<StudyMaterialModel>> fetchMaterialsBySubjectAndChapter({
+    required String subjectId,
+    required String chapterId,
+  }) async {
+    final response = await _client
+        .from('study_materials')
+        .select()
+        .eq('subject_id', subjectId)
+        .eq('chapter_id', chapterId);
+    return (response as List).map((json) => StudyMaterialModel.fromJson(json)).toList();
+  }
+
+  String getPublicUrl(String storagePath) {
+    return _client.storage.from('materials').getPublicUrl(storagePath);
   }
 
   Future<void> recordView({

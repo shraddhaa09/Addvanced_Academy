@@ -49,6 +49,7 @@ class FacultyMaterialsScreen extends ConsumerStatefulWidget {
 class _FacultyMaterialsScreenState
     extends ConsumerState<FacultyMaterialsScreen> {
   final TextEditingController _searchController = TextEditingController();
+
   String _searchQuery = '';
 
   /// 'all' | 'material' | 'video'
@@ -73,7 +74,8 @@ class _FacultyMaterialsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
+    final uploadsAsync =
+    ref.watch(recentFacultyUploadsProvider(null));
     final profileAsync = ref.watch(facultyProfileProvider);
     final statsAsync = ref.watch(facultyStatsProvider);
     final facultyIdAsync = ref.watch(currentFacultyIdProvider);
@@ -173,12 +175,11 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(AsyncValue profileAsync) {
+  // HEADER
+  Widget _buildHeader(AsyncValue<dynamic> profileAsync) {
     return profileAsync.when(
       data: (profile) {
-        final name = profile?.name;
+        final name = profile?.name as String?;
         final subject = profile?.subject as String?;
         final color = _subjectColor(subject);
         return Row(
@@ -257,6 +258,7 @@ class _FacultyMaterialsScreenState
           ),
         ],
       ),
+      error: (_, __) => const Text('Error loading profile'),
     );
   }
 
@@ -524,7 +526,7 @@ class _FacultyMaterialsScreenState
   ) {
     return facultyIdAsync.when(
       data: (facultyId) {
-        if (facultyId == null) return const SizedBox.shrink();
+        if (facultyId == null) return const SizedBox();
 
         final viewCountsAsync =
             ref.watch(contentViewCountsProvider(facultyId));
@@ -681,24 +683,6 @@ class _FacultyMaterialsScreenState
         ],
       ),
     );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      await ref
-          .read(facultyUploadServiceProvider)
-          .deleteUpload(item.id, item.contentType);
-      _refresh();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to delete. Please try again.'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
   }
 }
 
@@ -836,12 +820,7 @@ class _ShimmerBox extends StatefulWidget {
     required this.borderRadius,
   });
 
-  final double width;
-  final double height;
-  final double borderRadius;
-
-  @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
+  Widget _buildShimmerList() => const CircularProgressIndicator();
 }
 
 class _ShimmerBoxState extends State<_ShimmerBox>
@@ -861,27 +840,10 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final String query;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _opacity,
-      builder: (_, __) => Opacity(
-        opacity: _opacity.value,
-        child: Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE0E0E0),
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-          ),
-        ),
-      ),
-    );
+    return Center(child: Text('No data'));
   }
 }
