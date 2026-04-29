@@ -84,22 +84,38 @@ class MaterialService {
       'storage_path': storagePath,
       'material_type': materialType,
       'file_size_kb': fileSizeKb,
-    };
+    });
 
     try {
       final response = await _client
           .schema('academy')
           .from('study_materials')
-          .insert(payload)
+          .insert('payload')
           .select()
           .single();
 
-      return Map<String, dynamic>.from(response as Map);
+      return StudyMaterialModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw Exception('Database Error: ${e.message} (Code: ${e.code})');
     } catch (e) {
       throw Exception('Unexpected Database Error: $e');
     }
+  }
+
+  Future<List<StudyMaterialModel>> fetchMaterialsBySubjectAndChapter({
+    required String subjectId,
+    required String chapterId,
+  }) async {
+    final response = await _client
+        .from('study_materials')
+        .select()
+        .eq('subject_id', subjectId)
+        .eq('chapter_id', chapterId);
+    return (response as List).map((json) => StudyMaterialModel.fromJson(json)).toList();
+  }
+
+  String getPublicUrl(String storagePath) {
+    return _client.storage.from('materials').getPublicUrl(storagePath);
   }
 
   Future<void> recordView({

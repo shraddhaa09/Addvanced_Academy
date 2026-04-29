@@ -10,10 +10,10 @@ final announcementServiceProvider = Provider<AnnouncementService>((ref) {
 });
 
 final facultyAnnouncementsProvider =
-    FutureProvider.autoDispose<List<AnnouncementModel>>((ref) async {
-  final facultyId = await ref.watch(currentFacultyIdProvider.future);
+FutureProvider.autoDispose<List<AnnouncementModel>>((ref) async {
+  final facultyId = await ref.watch(currentFacultyIdProvider.future); // Use .future
   if (facultyId == null) return [];
-  
+
   final service = ref.watch(announcementServiceProvider);
   return service.fetchFacultyAnnouncements(facultyId);
 });

@@ -307,29 +307,35 @@ class _AnnouncementFormState extends ConsumerState<_AnnouncementForm> {
     setState(() => _isSaving = true);
 
     try {
-      final facultyId = ref.read(currentFacultyIdProvider);
-      if (facultyId == null) throw Exception('Faculty profile not found');
+      // FIX: currentFacultyIdProvider returns an AsyncValue.
+      // Use .valueOrNull or .requireValue to get the actual String.
+      final facultyIdAsync = ref.read(currentFacultyIdProvider);
+      final String? facultyId = facultyIdAsync.valueOrNull;
+
+      if (facultyId == null) {
+        throw Exception('Faculty profile not found or still loading.');
+      }
 
       if (widget.announcement == null) {
         await ref.read(announcementServiceProvider).createAnnouncement(
-              facultyId: facultyId,
-              title: _titleController.text.trim(),
-              message: _messageController.text.trim(),
-              targetBatch: _batchController.text.trim(),
-              subject: _subjectController.text.isNotEmpty ? _subjectController.text.trim() : null,
-              expiresAt: _expiresAt,
-            );
+          facultyId: facultyId, // Now passing a String, not AsyncValue
+          title: _titleController.text.trim(),
+          message: _messageController.text.trim(),
+          targetBatch: _batchController.text.trim(),
+          subject: _subjectController.text.isNotEmpty ? _subjectController.text.trim() : null,
+          expiresAt: _expiresAt,
+        );
       } else {
         await ref.read(announcementServiceProvider).updateAnnouncement(
-              widget.announcement!.id,
-              {
-                'title': _titleController.text.trim(),
-                'message': _messageController.text.trim(),
-                'target_batch': _batchController.text.trim(),
-                'subject': _subjectController.text.isNotEmpty ? _subjectController.text.trim() : null,
-                'expires_at': _expiresAt?.toIso8601String(),
-              },
-            );
+          widget.announcement!.id,
+          {
+            'title': _titleController.text.trim(),
+            'message': _messageController.text.trim(),
+            'target_batch': _batchController.text.trim(),
+            'subject': _subjectController.text.isNotEmpty ? _subjectController.text.trim() : null,
+            'expires_at': _expiresAt?.toIso8601String(),
+          },
+        );
       }
 
       ref.invalidate(facultyAnnouncementsProvider);
@@ -346,7 +352,6 @@ class _AnnouncementFormState extends ConsumerState<_AnnouncementForm> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Container(

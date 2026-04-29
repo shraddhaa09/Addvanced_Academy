@@ -11,6 +11,10 @@ class VideoService {
 
   final SupabaseClient _client;
 
+  String getPublicUrl(String storagePath) {
+    return _client.storage.from('videos').getPublicUrl(storagePath);
+  }
+
   Future<String> uploadVideoFile({
     required String fileName,
     required Object file, // ✅ fixed type
@@ -54,6 +58,15 @@ class VideoService {
     }
   }
 
+  // To fix image_7a3ddc.png
+  Future<List<VideoLectureModel>> fetchVideosBySubject(String subjectId) async {
+    final response = await _client
+        .from('video_lectures')
+        .select()
+        .eq('subject_id', subjectId);
+    return (response as List).map((json) => VideoLectureModel.fromJson(json)).toList();
+  }
+
 Future<Map<String, dynamic>> createVideoLecture({
   required String facultyId,
   required String subjectId,
@@ -92,6 +105,7 @@ Future<Map<String, dynamic>> createVideoLecture({
     throw Exception('Unexpected Database Error: $e');
   }
 }
+
 
   Future<void> recordView({
     required String videoId,

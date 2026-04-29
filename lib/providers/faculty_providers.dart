@@ -20,6 +20,10 @@ final subjectServiceProvider = Provider<SubjectService>((ref) {
   return SubjectService(Supabase.instance.client);
 });
 
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  return Supabase.instance.client;
+});
+
 final chapterServiceProvider = Provider<ChapterService>((ref) {
   return ChapterService(Supabase.instance.client);
 });
@@ -58,12 +62,13 @@ FutureProvider.autoDispose.family<List<ChapterModel>, String>(
       return service.fetchChaptersBySubject(subjectId);
     });
 
-final currentFacultyIdProvider = Provider.autoDispose<String?>((ref) {
+final currentFacultyIdProvider = FutureProvider.autoDispose<String?>((ref) async {
   final authState = ref.watch(authProvider);
   final authId = authState.userId;
   if (authId == null) return null;
 
   try {
+    // Await is now valid because this is a FutureProvider
     final row = await Supabase.instance.client
         .schema('academy')
         .from('users')
@@ -83,19 +88,37 @@ final currentFacultyIdProvider = Provider.autoDispose<String?>((ref) {
   }
 });
 
-final recentFacultyUploadsProvider =
-FutureProvider.autoDispose.family<List<FacultyUploadModel>, int?>(
-    (ref, limit) async {
-  final facultyId = ref.watch(currentFacultyIdProvider);
-  if (facultyId == null) return [];
+final contentViewCountsProvider = FutureProvider.family<Map<String, int>, String>((ref, facultyId) async {
+  final supabase = ref.watch(supabaseClientProvider);
 
-  final service = ref.watch(facultyUploadServiceProvider);
-  final uploads = await service.fetchRecentUploads(facultyId);
-  return limit != null ? uploads.take(limit).toList() : uploads;
+  // Replace 'content_views' with your actual table name
+  final response = await supabase
+      .from('content_views')
+      .select('content_id, view_count')
+      .eq('faculty_id', facultyId);
+
+  // Convert the list response into a Map for easy lookup: { contentId: count }
+  final Map<String, int> counts = {};
+  for (var item in response) {
+    counts[item['content_id'].toString()] = item['view_count'] as int;
+  }
+  return counts;
 });
 
+final recentFacultyUploadsProvider =
+FutureProvider.autoDispose.family<List<FacultyUploadModel>, int?>(
+        (ref, limit) async {
+      // Use .future to await the value of the other FutureProvider
+      final facultyId = await ref.watch(currentFacultyIdProvider.future);
+      if (facultyId == null) return [];
+
+      final service = ref.watch(facultyUploadServiceProvider);
+      final uploads = await service.fetchRecentUploads(facultyId);
+      return limit != null ? uploads.take(limit).toList() : uploads;
+    });
+
 final facultyProfileProvider = FutureProvider.autoDispose<FacultyModel?>((ref) async {
-  final facultyId = ref.watch(currentFacultyIdProvider);
+  final facultyId = await ref.watch(currentFacultyIdProvider.future);
   if (facultyId == null) return null;
 
   final service = ref.watch(facultyServiceProvider);
@@ -104,7 +127,7 @@ final facultyProfileProvider = FutureProvider.autoDispose<FacultyModel?>((ref) a
 
 final facultyStatsProvider =
 FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final facultyId = ref.watch(currentFacultyIdProvider);
+  final facultyId = await ref.watch(currentFacultyIdProvider.future);
   if (facultyId == null) {
     return {'videos': 0, 'materials': 0, 'total_uploads': 0, 'students': 0};
   }
@@ -113,25 +136,22 @@ FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   return service.fetchFacultyStats(facultyId);
 });
 
-final contentViewCountsProvider =
-    FutureProvider.autoDispose.family<Map<String, int>, String>((ref, facultyId) async {
-  final service = ref.watch(facultyServiceProvider);
-  return service.fetchContentViewCounts(facultyId);
-});
-
 final timetableProvider =
 FutureProvider.autoDispose.family<List<TimetableModel>, String>(
         (ref, dayOfWeek) async {
-      final facultyId = ref.watch(currentFacultyIdProvider);
+      final facultyId = await ref.watch(currentFacultyIdProvider.future);
       if (facultyId == null) return [];
 
       final service = ref.watch(timetableServiceProvider);
       return service.fetchScheduleByDay(facultyId, dayOfWeek);
     });
 
+
 final facultyScheduleProvider =
 FutureProvider.autoDispose<List<TimetableModel>>((ref) async {
-  final facultyId = ref.watch(currentFacultyIdProvide);
+  // Watch the FUTURE provider and use .value (or ref.watch(provider).value)
+  final facultyId = ref.watch(currentFacultyIdProvider).value;
+
   if (facultyId == null) return [];
 
   final service = ref.watch(timetableServiceProvider);
