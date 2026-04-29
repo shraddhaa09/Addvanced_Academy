@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../models/chapter_model.dart';
 import '../../../models/subject_model.dart';
 import '../../../providers/faculty_providers.dart';
-import '../../../core/errors/app_exceptions.dart'; // ✅ Added
+import '../../../core/errors/app_exceptions.dart';
 
 class UploadMaterialScreen extends ConsumerStatefulWidget {
   const UploadMaterialScreen({super.key});
@@ -76,7 +76,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
     setState(() => _isUploading = true);
 
     try {
-      // FIX: Since currentFacultyIdProvider is a FutureProvider, use .valueOrNull
       final facultyId = ref.read(currentFacultyIdProvider).valueOrNull;
       if (facultyId == null) throw Exception('Could not determine faculty ID');
 
@@ -127,22 +126,27 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.amber.shade800));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.amber.shade800));
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
   }
 
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1E8C6E), width: 1.5)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsProvider);
-
-    // Fix: Correct logic for watching chapters
     final chaptersAsync = _selectedSubject != null
         ? ref.watch(chaptersProvider(_selectedSubject!.id))
         : const AsyncValue.data(<ChapterModel>[]);
@@ -206,21 +210,18 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
                     TextFormField(
                       controller: _titleController,
                       decoration: _inputDecoration('Material Title'),
                       validator: (val) => val == null || val.isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _descriptionController,
                       decoration: _inputDecoration('Description (Optional)'),
                       maxLines: 3,
                     ),
                     const SizedBox(height: 16),
-
                     DropdownButtonFormField<String>(
                       value: _materialType,
                       decoration: _inputDecoration('Material Type'),
@@ -233,7 +234,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                       onChanged: (val) => setState(() => _materialType = val!),
                     ),
                     const SizedBox(height: 16),
-
                     subjectsAsync.when(
                       data: (subjects) => DropdownButtonFormField<SubjectModel>(
                         value: _selectedSubject,
@@ -251,7 +251,6 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                       error: (e, _) => Text('Error loading subjects: $e'),
                     ),
                     const SizedBox(height: 16),
-
                     chaptersAsync.when(
                       data: (chapters) => DropdownButtonFormField<ChapterModel>(
                         value: _selectedChapter,
@@ -263,36 +262,23 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                       loading: () => const Center(child: CircularProgressIndicator()),
                       error: (e, _) => Text('Error loading chapters: $e'),
                     ),
-                    const SizedBox(height: 16),
-
-  Widget _buildChapterDropdown(AsyncValue<List<ChapterModel>> async) {
-    return async.when(
-      data: (list) => DropdownButtonFormField<ChapterModel>(
-        value: _selectedChapter,
-        decoration: _inputDecoration('Select Chapter'),
-        items: list.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
-        onChanged: (val) => setState(() => _selectedChapter = val),
-      ),
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Error: $e'),
-    );
-  }
-
-  Widget _buildTypeDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _materialType,
-      decoration: _inputDecoration('Material Type'),
-      items: const [DropdownMenuItem(value: 'pdf', child: Text('PDF')), DropdownMenuItem(value: 'image', child: Text('Image'))],
-      onChanged: (val) => setState(() => _materialType = val!),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: FilledButton(
+                        onPressed: _upload,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E8C6E),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Upload Material', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

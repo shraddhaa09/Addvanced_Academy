@@ -54,7 +54,7 @@ class MaterialChaptersScreen extends ConsumerWidget {
                 accentColor: const Color(0xFF5B4FCF),
                 iconBackground: const Color(0xFFEEECFD),
                 onTap: () {
-                  context.push('/student/materials/$subject/${chapter.id}');
+                  context.push('/student/materials/list/$subject/${chapter.id}');
                 },
               );
             },

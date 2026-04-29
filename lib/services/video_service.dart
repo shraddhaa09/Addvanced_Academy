@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' as io;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/app_exceptions.dart';
+import '../models/video_lecture_model.dart';
 
 class VideoService {
   VideoService([SupabaseClient? client])

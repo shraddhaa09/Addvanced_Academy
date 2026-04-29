@@ -198,24 +198,18 @@ class _GreetingSection extends StatelessWidget {
 
   const _GreetingSection({required this.greeting, required this.name});
 
-      /// APP BAR
-      appBar: AppBar(
-        title: const Text('Student Dashboard'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: authState.isLoading 
-              ? null 
-              : () async {
-                  await ref.read(authProvider.notifier).signOut();
-                },
-            icon: authState.isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.logout),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$greeting, $name',
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1A1A2E),
+            letterSpacing: -0.4,
           ),
         ),
         const SizedBox(height: 4),

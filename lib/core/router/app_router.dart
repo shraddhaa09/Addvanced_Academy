@@ -96,41 +96,53 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
     // ---------------- REDIRECT ----------------
     redirect: (context, state) {
-  final authState = ref.read(authProvider);
-  final isLoggedIn = authState.isAuthenticated;
+      final authState = ref.read(authProvider);
+      final isLoggedIn = authState.isAuthenticated;
+      final path = state.uri.path;
 
-  final path = state.uri.path;
-  final isLoginRoute = path == RouteConstants.login;
+      final isLoginRoute = path == RouteConstants.login;
+      final isLandingRoute = path == RouteConstants.landing;
 
-  final isFacultyRoute = path.startsWith('/faculty');
-  final isStudentRoute = path.startsWith('/student');
-  final isAdminRoute = path.startsWith('/admin');
+      final isFacultyRoute = path.startsWith('/faculty');
+      final isStudentRoute = path.startsWith('/student');
+      final isAdminRoute = path.startsWith('/admin');
 
-  // 🚨 NOT LOGGED IN → BLOCK ALL PROTECTED ROUTES
-  if (!isLoggedIn) {
-    if (isFacultyRoute || isStudentRoute || isAdminRoute) {
-      return RouteConstants.login;
-    }
-    return isLoginRoute ? null : RouteConstants.login;
-  }
-
-  // 🚨 LOGGED IN → PREVENT GOING BACK TO LOGIN
-  if (isLoginRoute) {
-    switch (authState.role) {
-      case AppUserRole.admin:
-        return RouteConstants.adminDashboard;
-      case AppUserRole.faculty:
-        return RouteConstants.facultyDashboard;
-      case AppUserRole.student:
-        return RouteConstants.studentDashboard;
-      case AppUserRole.unknown:
+      // 🚨 NOT LOGGED IN
+      if (!isLoggedIn) {
+        if (isFacultyRoute || isStudentRoute || isAdminRoute) {
+          return RouteConstants.login;
+        }
+        // Allow landing and login
+        if (isLoginRoute || isLandingRoute) return null;
+        // Everything else goes to login
         return RouteConstants.login;
-    }
-  }
+      }
 
-  return null;
+      // 🚨 LOGGED IN
+      // Prevent going back to login or landing
+      if (isLoginRoute || isLandingRoute) {
+        switch (authState.role) {
+          case AppUserRole.admin:
+            return RouteConstants.adminDashboard;
+          case AppUserRole.faculty:
+            return RouteConstants.facultyDashboard;
+          case AppUserRole.student:
+            return RouteConstants.studentDashboard;
+          case AppUserRole.unknown:
+            // If role is unknown but logged in, maybe something is wrong, but don't loop
+            return null;
+        }
+      }
+
+      return null;
     },
     routes: [
+
+      // ===== LANDING =====
+      GoRoute(
+        path: RouteConstants.landing,
+        builder: (context, state) => const LandingScreen(),
+      ),
 
       // ===== LOGIN =====
       GoRoute(

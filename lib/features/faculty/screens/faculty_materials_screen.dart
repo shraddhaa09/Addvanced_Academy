@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
+import '../../../core/widgets/shimmer_widgets.dart';
 import '../../../models/faculty_upload_model.dart';
 import '../../../providers/faculty_providers.dart';
 import '../widgets/recent_upload_tile.dart';
@@ -230,32 +231,11 @@ class _FacultyMaterialsScreenState
           ],
         );
       },
-      loading: () => Row(
+      loading: () => const Row(
         children: [
-          _ShimmerBox(width: 40, height: 40, borderRadius: 20),
-          const SizedBox(width: 12),
-          _ShimmerBox(width: 140, height: 16, borderRadius: 8),
-        ],
-      ),
-      error: (_, __) => Row(
-        children: [
-          const CircleAvatar(
-            radius: 20,
-            backgroundColor: Color(0xFFEDE9FF),
-            child: Icon(Icons.person, color: Color(0xFF5B4FCF)),
-          ),
-          const SizedBox(width: 12),
-          const Text('Hello, Professor',
-              style:
-                  TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.campaign_outlined,
-                color: Color(0xFF1A1A2E)),
-            onPressed: () => context.push(
-                '${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
-            tooltip: 'Notices',
-          ),
+          ShimmerBox(width: 40, height: 40, borderRadius: 20),
+          SizedBox(width: 12),
+          ShimmerBox(width: 140, height: 16, borderRadius: 8),
         ],
       ),
       error: (_, __) => const Text('Error loading profile'),
@@ -371,7 +351,7 @@ class _FacultyMaterialsScreenState
         );
       },
       loading: () =>
-          _ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
+          const ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -410,18 +390,18 @@ class _FacultyMaterialsScreenState
           ),
         ],
       ),
-      loading: () => Row(
+      loading: () => const Row(
         children: [
           Expanded(
-              child: _ShimmerBox(
+              child: ShimmerBox(
                   width: double.infinity, height: 84, borderRadius: 14)),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
-              child: _ShimmerBox(
+              child: ShimmerBox(
                   width: double.infinity, height: 84, borderRadius: 14)),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
-              child: _ShimmerBox(
+              child: ShimmerBox(
                   width: double.infinity, height: 84, borderRadius: 14)),
         ],
       ),
@@ -593,9 +573,9 @@ class _FacultyMaterialsScreenState
     return Column(
       children: List.generate(
         3,
-        (_) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _ShimmerBox(
+        (_) => const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: ShimmerBox(
               width: double.infinity, height: 80, borderRadius: 12),
         ),
       ),
@@ -810,40 +790,5 @@ class _EmptyState extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _ShimmerBox extends StatefulWidget {
-  const _ShimmerBox({
-    required this.width,
-    required this.height,
-    required this.borderRadius,
-  });
-
-  Widget _buildShimmerList() => const CircularProgressIndicator();
-}
-
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 0.35, end: 0.85).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('No data'));
   }
 }

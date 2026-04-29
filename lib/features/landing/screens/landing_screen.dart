@@ -202,7 +202,7 @@ class _FeatureCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+              backgroundColor: AppColors.primary.withOpacity(0.10),
               child: Icon(
                 item.icon,
                 color: AppColors.primary,

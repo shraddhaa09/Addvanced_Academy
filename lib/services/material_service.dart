@@ -3,6 +3,7 @@ import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/app_exceptions.dart';
+import '../models/study_material_model.dart';
 
 class MaterialService {
   MaterialService([SupabaseClient? client])
@@ -84,16 +85,15 @@ class MaterialService {
       'title': title.trim(),
       'storage_path': storagePath,
       'description': description,
-      'storage_path': storagePath,
       'material_type': materialType,
       'file_size_kb': fileSizeKb,
-    });
+    };
 
     try {
       final response = await _client
           .schema('academy')
           .from('study_materials')
-          .insert('payload')
+          .insert(payload)
           .select()
           .single();
 

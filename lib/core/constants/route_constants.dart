@@ -20,8 +20,6 @@ class RouteConstants {
   static const String uploadHistory = 'upload-history';
   static const String helpSupport = 'help-support';
   static const String facultyAnnouncements = 'announcements';
-  static const String mySubjects = 'my-subjects';
-  static const String uploadHistory = 'upload-history';
 
   static const String videoViewer = 'video-viewer';
   static const String materialViewer = 'material-viewer';
@@ -47,22 +45,10 @@ class RouteConstants {
   static const String studentTimetable = '/student/timetable';
   static const String studentSyllabus = '/student/syllabus';
 
-  static const String videoSubjectsAlt = '/video-subjects';
-  static const String videoListAlt = '/video-list';
-  static const String videoPlayerAlt = '/video-player';
-
-  static const String materialSubjectsAlt = '/material-subjects';
-  static const String materialChaptersAlt = '/material-chapters';
-  static const String materialListAlt = '/material-list';
-
-  static const String syllabus = '/syllabus';
-  static const String studentTimetableAlt = '/student-timetable';
-
-  static const String assignedTestsAlt = '/assigned-tests';
-  static const String testSelectionAlt = '/test-selection';
-  static const String chapterSelectionAlt = '/chapter-selection';
-  static const String testConfirmationAlt = '/test-confirmation';
-  static const String testEngineAlt = '/test-engine';
-  static const String resultAlt = '/result';
-  static const String answerReviewAlt = '/answer-review';
+  // Specific getters needed by app_router
+  static const String studentSchedule = studentTimetable;
+  static const String studentMaterials = materialSubjects;
+  static const String studentVideos = videoSubjects;
+  static const String studentProfile = '/student/profile';
+  static const String studentSupport = '/student/support';
 }

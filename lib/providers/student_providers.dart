@@ -67,6 +67,7 @@ final studentRecentUploadsProvider =
         .schema('academy')
         .from('v_faculty_uploads')
         .select()
+        .eq('is_visible', true)
         .order('uploaded_at', ascending: false);
 
     final uploads = (response as List)

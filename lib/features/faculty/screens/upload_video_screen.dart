@@ -187,15 +187,15 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         fileName: _fileName!,
         file: _fileData!,
         facultyId: facultyId,
-        subjectId: subjectId,
-        chapterId: chapterId,
+        subjectId: _selectedSubject!.id,
+        chapterId: _selectedChapter!.id,
       );
 
       // 4. Create the database record
       await videoService.createVideoLecture(
         facultyId: facultyId,
-        subjectId: subjectId,
-        chapterId: chapterId,
+        subjectId: _selectedSubject!.id,
+        chapterId: _selectedChapter!.id,
         title: _titleController.text.trim(),
         storagePath: storagePath,
         description: _descriptionController.text.trim(),
