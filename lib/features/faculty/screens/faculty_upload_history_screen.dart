@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
 import '../../../providers/faculty_providers.dart';
@@ -27,8 +26,19 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
 
   @override
   Widget build(BuildContext context) {
-    final uploadsAsync = ref.watch(recentFacultyUploadsProvider);
+    // 1. ALL WATCH CALLS MUST BE AT THE TOP LEVEL
+    final facultyIdResult = ref.watch(currentFacultyIdProvider);
+
+    // We extract the ID safely to use in other providers
+    final String? facultyId = facultyIdResult.maybeWhen(
+      data: (id) => id,
+      orElse: () => null,
+    );
+
+    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
+    // statsAsync is now used here to clear the "unused variable" warning
     final statsAsync = ref.watch(facultyStatsProvider);
+    final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId ?? ''));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -51,16 +61,16 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
           onRefresh: () async {
             ref.invalidate(recentFacultyUploadsProvider);
             ref.invalidate(facultyStatsProvider);
+            ref.invalidate(contentViewCountsProvider);
           },
           child: Column(
             children: [
-              // Sticky Search and Filter section
+              // Search and Filter section
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                 child: Column(
                   children: [
-                    // Search Bar
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
@@ -80,7 +90,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Filter Chips
                     Row(
                       children: [
                         _buildFilterChip('All', 'all'),
@@ -94,41 +103,55 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
                 ),
               ),
 
-              // Scrollable List
+              // UI logic - combined into a single clean flow
               Expanded(
-                child: uploadsAsync.when(
-                  data: (uploads) {
-                    final filtered = uploads.where((u) {
-                      final matchesSearch = u.title.toLowerCase().contains(_searchQuery) || 
-                                          u.subject.toLowerCase().contains(_searchQuery);
-                      final matchesFilter = _filterType == 'all' || u.contentType == _filterType;
-                      return matchesSearch && matchesFilter;
-                    }).toList();
+                child: facultyIdResult.when(
+                  data: (id) {
+                    if (id == null) return _buildEmptyState();
 
-                    if (filtered.isEmpty) {
-                      return _buildEmptyState();
-                    }
+                    return uploadsAsync.when(
+                      data: (uploads) {
+                        return viewCountsAsync.when(
+                          data: (viewCounts) {
+                            final filtered = uploads.where((u) {
+                              final matchesSearch = u.title.toLowerCase().contains(_searchQuery) ||
+                                  u.subject.toLowerCase().contains(_searchQuery);
+                              final matchesFilter = _filterType == 'all' || u.contentType == _filterType;
+                              return matchesSearch && matchesFilter;
+                            }).toList();
 
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(24),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final item = filtered[index];
-                        return RecentUploadTile(
-                          upload: item,
-                          onEdit: () {
-                            context.push(
-                              '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}', 
-                              extra: item,
+                            if (filtered.isEmpty) return _buildEmptyState();
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(24),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final item = filtered[index];
+                                return RecentUploadTile(
+                                  upload: item,
+                                  viewCount: viewCounts[item.id],
+                                  onEdit: () {
+                                    context.push(
+                                      '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}',
+                                      extra: item,
+                                    );
+                                  },
+                                  onDelete: () => _handleDelete(context, item),
+                                );
+                              },
                             );
                           },
-                          onDelete: () => _handleDelete(context, item),
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          // Fixed: Use _ to avoid "multiple underscores" warning
+                          error: (e, _) => Center(child: Text('Error loading counts: $e')),
                         );
                       },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(child: Text('Error loading uploads: $e')),
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, __) => Center(child: Text('Error: $e')),
+                  error: (e, _) => Center(child: Text('Error fetching Faculty ID: $e')),
                 ),
               ),
             ],
@@ -174,17 +197,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
             _searchQuery.isEmpty ? 'No uploads yet' : 'No results found',
             style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w500),
           ),
-          if (_searchQuery.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _filterType = 'all';
-                });
-              },
-              child: const Text('Clear Filters', style: TextStyle(color: Color(0xFF5B4FCF))),
-            ),
         ],
       ),
     );
@@ -195,16 +207,10 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Upload?'),
-        content: const Text('Are you sure you want to delete this item? This action cannot be undone.'),
+        content: const Text('Are you sure you want to delete this item?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -214,13 +220,9 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
         await ref.read(facultyUploadServiceProvider).deleteUpload(item.id, item.contentType);
         ref.invalidate(recentFacultyUploadsProvider);
         ref.invalidate(facultyStatsProvider);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }

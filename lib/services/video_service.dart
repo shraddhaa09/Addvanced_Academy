@@ -13,7 +13,7 @@ class VideoService {
 
   Future<String> uploadVideoFile({
     required String fileName,
-    required Object file,
+    required Object file, // ✅ fixed type
     required String facultyId,
     required String subjectId,
     required String chapterId,
@@ -54,94 +54,57 @@ class VideoService {
     }
   }
 
-  Future<VideoLectureModel> createVideoLecture({
-    required String facultyId,
-    required String subjectId,
-    required String chapterId,
-    required String title,
-    required String storagePath,
-    String? description,
-    required bool isVisible,
-    int? fileSizeKb,
-    int? durationSec,
-  }) async {
-    // 1. Deduplication Check
-    try {
-      final existing = await _client
-          .from('video_lectures')
-          .select('id')
-          .eq('faculty_id', facultyId)
-          .eq('subject_id', subjectId)
-          .ilike('title', title.trim())
-          .maybeSingle();
+Future<Map<String, dynamic>> createVideoLecture({
+  required String facultyId,
+  required String subjectId,
+  required String chapterId,
+  required String title,
+  required String storagePath,
+  String? description,
+  required bool isVisible,
+  int? fileSizeKb,
+  int? durationSec,
+}) async {
+  final payload = {
+    'faculty_id': facultyId,
+    'subject_id': subjectId,
+    'chapter_id': chapterId,
+    'title': title,
+    'storage_path': storagePath,
+    'description': description,
+    'is_visible': isVisible,
+    'file_size_kb': fileSizeKb,
+    'duration_sec': durationSec,
+  };
 
-      if (existing != null) {
-        throw DuplicateUploadException('A video with this title already exists in this subject.');
-      }
-    } on PostgrestException catch (e) {
-      debugPrint('Deduplication check failed: $e');
-    }
-
-    // 2. Insert
-    final payload = {
-      'faculty_id': facultyId,
-      'subject_id': subjectId,
-      'chapter_id': chapterId,
-      'title': title.trim(),
-      'storage_path': storagePath,
-      'description': description,
-      'is_visible': isVisible,
-      'file_size_kb': fileSizeKb,
-      'duration_sec': durationSec,
-    };
-
-    try {
-      final response = await _client
-          .from('video_lectures')
-          .insert(payload)
-          .select()
-          .single();
-
-      return VideoLectureModel.fromJson(response);
-    } on PostgrestException catch (e) {
-      if (e.code == '23505') {
-        throw DuplicateUploadException('A video with this title already exists in this subject.');
-      }
-      throw Exception('Database Error: ${e.message} (Code: ${e.code})');
-    } catch (e) {
-      if (e is DuplicateUploadException) rethrow;
-      throw Exception('Unexpected Database Error: $e');
-    }
-  }
-
-  Future<List<VideoLectureModel>> fetchVideosBySubject(String subjectId) async {
+  try {
     final response = await _client
+        .schema('academy')
         .from('video_lectures')
+        .insert(payload)
         .select()
-        .eq('subject_id', subjectId)
-        .eq('is_visible', true)
-        .order('uploaded_at', ascending: false);
+        .single();
 
-    return (response as List).map((e) => VideoLectureModel.fromJson(e)).toList();
+    return Map<String, dynamic>.from(response as Map);
+  } on PostgrestException catch (e) {
+    throw Exception('Database Error: ${e.message} (Code: ${e.code})');
+  } catch (e) {
+    throw Exception('Unexpected Database Error: $e');
   }
-
-  String getPublicUrl(String storagePath) {
-    return Supabase.instance.client.storage
-        .from('videos')
-        .getPublicUrl(storagePath);
-  }
+}
 
   Future<void> recordView({
     required String videoId,
     required String studentId,
   }) async {
     try {
-      await _client.from('content_views').insert({
+      await _client.schema('academy').from('content_views').insert({
         'content_id': videoId,
         'content_type': 'video',
         'student_id': studentId,
       });
     } catch (e) {
+      // Silently fail as view recording shouldn't block the user
       debugPrint('Error recording video view: $e');
     }
   }

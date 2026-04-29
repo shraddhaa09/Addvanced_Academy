@@ -1,10 +1,9 @@
-import 'dart:io' as io;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io' as io;
 
 import '../../../core/errors/app_exceptions.dart';
 import '../../../models/chapter_model.dart';
@@ -32,7 +31,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   bool _isLoadingChapters = false;
   String? _chapterError;
 
-  dynamic _fileData;
+  dynamic _fileData; // io.File or Uint8List
   String? _fileName;
   String? _fileSizeLabel;
   String? _fileError;
@@ -92,13 +91,61 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
     }
   }
 
+  Future<void> _loadChapters(SubjectModel? subject) async {
+    setState(() {
+      _selectedSubject = subject;
+      _selectedChapter = null;
+      _chapters = [];
+      _chapterError = null;
+      _isLoadingChapters = subject != null;
+    });
+
+    if (subject == null) return;
+
+    try {
+      final service = ref.read(chapterServiceProvider);
+      final chapters = await service.fetchChaptersBySubject(subject.id);
+
+      if (!mounted) return;
+      setState(() {
+        _chapters = chapters;
+        _isLoadingChapters = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _chapters = [];
+        _isLoadingChapters = false;
+        _chapterError = 'Error: ${e.toString().replaceAll('Exception:', '').trim()}';
+      });
+    }
+  }
+
+  void _clearFile() {
+    setState(() {
+      _fileData = null;
+      _fileName = null;
+      _fileSizeLabel = null;
+      _fileSizeBytes = null;
+      _fileError = null;
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_isDirty) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _DiscardDialog(),
+    );
+    return discard ?? false;
+  }
+
   Future<void> _pickVideo() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.video,
-        withData: kIsWeb,
+        withData: kIsWeb, // Needed for web
       );
-
       if (result == null || result.files.single.name.isEmpty) return;
 
       final name = result.files.single.name;
@@ -119,31 +166,25 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
           ? '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
           : '${(sizeBytes / 1024).toStringAsFixed(0)} KB';
 
-      if (kIsWeb) {
-        final bytes = result.files.single.bytes;
-        if (bytes == null) {
-          throw Exception('Failed to read file bytes');
-        }
-        setState(() {
+      setState(() {
+        if (kIsWeb) {
+          final bytes = result.files.single.bytes;
+          if (bytes == null) {
+            throw Exception('Failed to read file bytes');
+          }
           _fileData = bytes;
-          _fileName = name;
-          _fileSizeLabel = sizeLabel;
-          _fileSizeBytes = sizeBytes;
-          _fileError = null;
-        });
-      } else {
-        final path = result.files.single.path;
-        if (path == null) {
-          throw Exception('File path is null');
-        }
-        setState(() {
+        } else {
+          final path = result.files.single.path;
+          if (path == null) {
+            throw Exception('File path is null');
+          }
           _fileData = io.File(path);
-          _fileName = name;
-          _fileSizeLabel = sizeLabel;
-          _fileSizeBytes = sizeBytes;
-          _fileError = null;
-        });
-      }
+        }
+        _fileName = name;
+        _fileSizeLabel = sizeLabel;
+        _fileSizeBytes = sizeBytes;
+        _fileError = null;
+      });
     } catch (e) {
       setState(() {
         _fileError = 'Picker error: $e';
@@ -163,30 +204,19 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
   Future<void> _upload() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSubject == null ||
-        _selectedChapter == null ||
-        _fileData == null ||
-        _fileName == null ||
-        _fileSizeBytes == null) {
-      return;
-    }
+    if (_selectedSubject == null || _selectedChapter == null || _fileData == null) return;
 
     setState(() => _isUploading = true);
 
     try {
-      final facultyId = ref.read(currentFacultyIdProvider);
-      if (facultyId == null || facultyId.isEmpty) {
-        throw Exception('Could not determine faculty ID');
-      }
+      final facultyId = await ref.read(currentFacultyIdProvider.future);
+      if (facultyId == null) throw Exception('Could not determine faculty ID');
 
       final videoService = ref.read(videoServiceProvider);
 
-      final subjectId = _selectedSubject!.id as String;
-      final chapterId = _selectedChapter!.id as String;
-
       final storagePath = await videoService.uploadVideoFile(
         fileName: _fileName!,
-        file: _fileData,
+        file: _fileData!,
         facultyId: facultyId,
         subjectId: subjectId,
         chapterId: chapterId,
@@ -208,16 +238,6 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       if (!mounted) return;
       setState(() => _isUploading = false);
       _showSuccessSheet();
-    } on DuplicateUploadException catch (e) {
-      if (!mounted) return;
-      setState(() => _isUploading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Colors.amber.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploading = false);
@@ -252,9 +272,6 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
             _fileData = null;
             _fileName = null;
             _fileSizeLabel = null;
-            _fileSizeBytes = null;
-            _fileError = null;
-            _chapterError = null;
             _isVisible = true;
           });
         },
@@ -289,15 +306,13 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
     return PopScope(
       canPop: !_isDirty,
-      onPopInvokedWithResult: (didPop, result) async {
+      onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final discard = await showDialog<bool>(
           context: context,
           builder: (_) => const _DiscardDialog(),
         );
-        if ((discard ?? false) && context.mounted) {
-          context.pop();
-        }
+        if ((discard ?? false) && context.mounted) context.pop();
       },
       child: Stack(
         children: [
@@ -321,110 +336,79 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                       onClear: _clearFile,
                     ),
                     const SizedBox(height: 24),
-                    const _FieldLabel('Lecture Title'),
+                    _FieldLabel('Lecture Title'),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _titleController,
                       maxLength: 100,
-                      buildCounter: (
-                          context, {
-                            required int currentLength,
-                            required bool isFocused,
-                            required int? maxLength,
-                          }) {
+                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) {
                         if (currentLength < 80) return null;
                         return Text(
                           '$currentLength/$maxLength',
                           style: TextStyle(
                             fontSize: 11,
-                            color:
-                            currentLength >= 100 ? Colors.red : Colors.grey,
+                            color: currentLength >= 100 ? Colors.red : Colors.grey,
                           ),
                         );
                       },
                       decoration: _inputDecoration('e.g. Kinematics — Part 1'),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Title is required';
-                        }
-                        return null;
-                      },
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required' : null,
                     ),
                     const SizedBox(height: 16),
-                    const _FieldLabel('Subject'),
+                    _FieldLabel('Subject'),
                     const SizedBox(height: 6),
                     subjectsAsync.when(
                       data: (subjects) => DropdownButtonFormField<SubjectModel>(
-                        initialValue: _selectedSubject,
+                        value: _selectedSubject,
                         decoration: _inputDecoration('Select subject'),
                         items: subjects
-                            .map(
-                              (subject) => DropdownMenuItem<SubjectModel>(
-                            value: subject,
-                            child: Text(subject.name),
-                          ),
-                        )
+                            .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
                             .toList(),
-                        onChanged: _loadChapters,
-                        validator: (value) =>
-                        value == null ? 'Please select a subject' : null,
+                        onChanged: (val) {
+                          _loadChapters(val);
+                        },
+                        validator: (v) => v == null ? 'Please select a subject' : null,
                       ),
                       loading: () => const _SkeletonField(),
-                      error: (error, stackTrace) =>
-                      const _ErrorField('Could not load subjects'),
+                      error: (e, _) => const _ErrorField('Could not load subjects'),
                     ),
                     const SizedBox(height: 16),
-                    const _FieldLabel('Chapter'),
+                    _FieldLabel('Chapter'),
                     const SizedBox(height: 6),
                     if (_isLoadingChapters)
                       const _SkeletonField()
                     else if (_chapterError != null)
-                      _ErrorField(
-                        _chapterError!,
-                        onRetry: () => _loadChapters(_selectedSubject),
-                      )
+                      _ErrorField(_chapterError!, onRetry: () => _loadChapters(_selectedSubject))
                     else if (_selectedSubject != null && _chapters.isEmpty)
-                        const _ErrorField(
-                          'No chapters found for this subject. Please add chapters first.',
-                        )
-                      else
-                        DropdownButtonFormField<ChapterModel>(
-                          initialValue: _selectedChapter,
-                          decoration: _inputDecoration(
-                            _selectedSubject == null
-                                ? 'Select subject first'
-                                : 'Select chapter',
-                          ),
-                          items: _chapters
-                              .map(
-                                (chapter) => DropdownMenuItem<ChapterModel>(
-                              value: chapter,
-                              child: Text(chapter.name),
-                            ),
-                          )
-                              .toList(),
-                          onChanged: _selectedSubject == null || _chapters.isEmpty
-                              ? null
-                              : (value) =>
-                              setState(() => _selectedChapter = value),
-                          validator: (value) =>
-                          value == null ? 'Please select a chapter' : null,
-                        ),
+                      const _ErrorField('No chapters found for this subject. Please add chapters first.')
+                    else
+                      DropdownButtonFormField<ChapterModel>(
+                        value: _selectedChapter,
+                        decoration: _inputDecoration(_selectedSubject == null ? 'Select subject first' : 'Select chapter'),
+                        items: _chapters
+                            .map((c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(c.name),
+                        ))
+                            .toList(),
+                        onChanged: _selectedSubject == null || _chapters.isEmpty
+                            ? null
+                            : (val) => setState(() => _selectedChapter = val),
+                        validator: (v) => v == null ? 'Please select a chapter' : null,
+                      ),
                     const SizedBox(height: 16),
-                    const _FieldLabel('Notes (optional)'),
+                    _FieldLabel('Notes (optional)'),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _descriptionController,
-                      decoration:
-                      _inputDecoration('Brief description of this lecture'),
+                      decoration: _inputDecoration('Brief description of this lecture'),
                       maxLines: 3,
                       maxLength: 300,
                     ),
                     const SizedBox(height: 16),
                     _VisibilityToggle(
                       value: _isVisible,
-                      onChanged: (value) =>
-                          setState(() => _isVisible = value),
+                      onChanged: (v) => setState(() => _isVisible = v),
                     ),
                     const SizedBox(height: 32),
                     _UploadButton(
@@ -435,10 +419,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                     const Center(
                       child: Text(
                         "Files are stored in Addvanced Academy's secure cloud.",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFFB0B0B0),
-                        ),
+                        style: TextStyle(fontSize: 11, color: Color(0xFFB0B0B0)),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -468,13 +449,9 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
           letterSpacing: -0.3,
         ),
       ),
-      bottom: const PreferredSize(
-        preferredSize: Size.fromHeight(1),
-        child: Divider(
-          height: 1,
-          thickness: 1,
-          color: Color(0xFFEEEEEE),
-        ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Divider(height: 1, thickness: 1, color: const Color(0xFFEEEEEE)),
       ),
     );
   }
@@ -482,16 +459,10 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
-        color: Color(0xFFB0B0B0),
-        fontSize: 14,
-      ),
+      hintStyle: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 14),
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
@@ -517,9 +488,8 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-
   final String text;
+  const _FieldLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
@@ -535,6 +505,13 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _FilePicker extends StatelessWidget {
+  final dynamic selectedFile;
+  final String? fileName;
+  final String? fileSizeLabel;
+  final String? fileError;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
   const _FilePicker({
     required this.selectedFile,
     required this.fileName,
@@ -543,13 +520,6 @@ class _FilePicker extends StatelessWidget {
     required this.onTap,
     required this.onClear,
   });
-
-  final dynamic selectedFile;
-  final String? fileName;
-  final String? fileSizeLabel;
-  final String? fileError;
-  final VoidCallback onTap;
-  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -566,9 +536,7 @@ class _FilePicker extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: fileError != null
-                      ? const Color(0xFFE53935)
-                      : const Color(0xFFDDDDDD),
+                  color: fileError != null ? const Color(0xFFE53935) : const Color(0xFFDDDDDD),
                   width: 1.5,
                 ),
               ),
@@ -600,10 +568,7 @@ class _FilePicker extends StatelessWidget {
                   const SizedBox(height: 2),
                   const Text(
                     'MP4, MOV, AVI · Max 500 MB',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9CA3AF),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                   ),
                 ],
               ),
@@ -615,9 +580,7 @@ class _FilePicker extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0xFF5B4FCF).withValues(alpha: 0.3),
-              ),
+              border: Border.all(color: const Color(0xFF5B4FCF).withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -660,38 +623,21 @@ class _FilePicker extends StatelessWidget {
                     ],
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(
-                      onPressed: onTap,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Change',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF5B4FCF),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                TextButton(
+                  onPressed: onTap,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Change',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF5B4FCF),
+                      fontWeight: FontWeight.w600,
                     ),
-                    IconButton(
-                      onPressed: onClear,
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Color(0xFF6B7280),
-                      ),
-                      splashRadius: 18,
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -700,20 +646,11 @@ class _FilePicker extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 14,
-                color: Color(0xFFE53935),
-              ),
+              const Icon(Icons.error_outline_rounded, size: 14, color: Color(0xFFE53935)),
               const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  fileError!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFE53935),
-                  ),
-                ),
+              Text(
+                fileError!,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFE53935)),
               ),
             ],
           ),
@@ -724,13 +661,10 @@ class _FilePicker extends StatelessWidget {
 }
 
 class _VisibilityToggle extends StatelessWidget {
-  const _VisibilityToggle({
-    required this.value,
-    required this.onChanged,
-  });
-
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  const _VisibilityToggle({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -753,28 +687,21 @@ class _VisibilityToggle extends StatelessWidget {
         ),
         subtitle: const Text(
           'Published immediately after upload',
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xFF9CA3AF),
-          ),
+          style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
         ),
         value: value,
         onChanged: onChanged,
-        activeThumbColor: const Color(0xFF5B4FCF),
-        activeTrackColor: const Color(0xFF5B4FCF).withValues(alpha: 0.5),
+        activeColor: const Color(0xFF5B4FCF),
       ),
     );
   }
 }
 
 class _UploadButton extends StatelessWidget {
-  const _UploadButton({
-    required this.enabled,
-    required this.onTap,
-  });
-
   final bool enabled;
   final VoidCallback onTap;
+
+  const _UploadButton({required this.enabled, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -815,7 +742,7 @@ class _UploadOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withValues(alpha: 0.45),
+      color: Colors.black.withOpacity(0.45),
       child: Center(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 48),
@@ -824,9 +751,9 @@ class _UploadOverlay extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Column(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: const [
               CircularProgressIndicator(
                 color: Color(0xFF5B4FCF),
                 strokeWidth: 3,
@@ -844,10 +771,7 @@ class _UploadOverlay extends StatelessWidget {
               Text(
                 'Do not close the app or switch screens.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
               ),
             ],
           ),
@@ -864,23 +788,14 @@ class _DiscardDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
         'Discard upload?',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF1A1A2E),
-        ),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
       ),
       content: const Text(
         'You have unsaved changes. Going back will clear your form.',
-        style: TextStyle(
-          fontSize: 13,
-          color: Color(0xFF6B7280),
-        ),
+        style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
@@ -890,16 +805,11 @@ class _DiscardDialog extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(false),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFFEEEEEE)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text(
               'Keep editing',
-              style: TextStyle(
-                color: Color(0xFF1A1A2E),
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -910,17 +820,12 @@ class _DiscardDialog extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE53935),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               elevation: 0,
             ),
             child: const Text(
               'Discard',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -930,126 +835,102 @@ class _DiscardDialog extends StatelessWidget {
 }
 
 class _SuccessSheet extends StatelessWidget {
+  final String title;
+  final VoidCallback onDashboard;
+  final VoidCallback onUploadAnother;
+
   const _SuccessSheet({
     required this.title,
     required this.onDashboard,
     required this.onUploadAnother,
   });
 
-  final String title;
-  final VoidCallback onDashboard;
-  final VoidCallback onUploadAnother;
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE6F4F0),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Color(0xFF2BB5A0),
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Upload successful!',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '"$title" is now available to students.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: onDashboard,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B4FCF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Go to dashboard',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: onUploadAnother,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFEEEEEE)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Upload another',
-                    style: TextStyle(
-                      color: Color(0xFF1A1A2E),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+  child: SingleChildScrollView(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6F4F0),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.check_rounded, color: Color(0xFF2BB5A0), size: 30),
           ),
-        ),
+          const SizedBox(height: 16),
+          const Text(
+            'Upload successful!',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '"$title" is now available to students.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: onDashboard,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B4FCF),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Go to dashboard',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: onUploadAnother,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFEEEEEE)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text(
+                'Upload another',
+                style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
       ),
+    )
+  )
     );
   }
 }
 
 class _ErrorSheet extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onCancel;
+
   const _ErrorSheet({
     required this.message,
     required this.onRetry,
     required this.onCancel,
   });
 
-  final String message;
-  final VoidCallback onRetry;
-  final VoidCallback onCancel;
-
   String _friendlyMessage(String raw) {
     if (raw.toLowerCase().contains('storage')) {
       return 'Storage Error: ${raw.replaceAll('Exception:', '').trim()}';
     }
-    if (raw.toLowerCase().contains('database') ||
-        raw.toLowerCase().contains('postgrest')) {
+    if (raw.toLowerCase().contains('database') || raw.toLowerCase().contains('postgrest')) {
       return 'Database Error: ${raw.replaceAll('Exception:', '').trim()}';
     }
     if (raw.contains('SocketException') || raw.contains('network')) {
@@ -1061,92 +942,68 @@ class _ErrorSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEBEE),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.close_rounded,
-                  color: Color(0xFFE53935),
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Upload failed',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _friendlyMessage(message),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: onRetry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B4FCF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Try again',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: onCancel,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFEEEEEE)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.close_rounded, color: Color(0xFFE53935), size: 30),
           ),
-        ),
+          const SizedBox(height: 16),
+          const Text(
+            'Upload failed',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _friendlyMessage(message),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B4FCF),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Try again',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: onCancel,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFEEEEEE)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
       ),
+      ))
     );
   }
 }
@@ -1167,10 +1024,9 @@ class _SkeletonField extends StatelessWidget {
 }
 
 class _ErrorField extends StatelessWidget {
-  const _ErrorField(this.message, {this.onRetry});
-
   final String message;
   final VoidCallback? onRetry;
+  const _ErrorField(this.message, {this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -1180,35 +1036,21 @@ class _ErrorField extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFEBEE),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE53935).withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: const Color(0xFFE53935).withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 16,
-            color: Color(0xFFE53935),
-          ),
+          const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFE53935)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFFE53935),
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFFE53935), fontWeight: FontWeight.w500),
             ),
           ),
           if (onRetry != null)
             IconButton(
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: Color(0xFFE53935),
-              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFFE53935)),
               onPressed: onRetry,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

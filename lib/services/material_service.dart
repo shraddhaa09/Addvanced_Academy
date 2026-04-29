@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/errors/app_exceptions.dart';
 import '../models/study_material_model.dart';
@@ -14,38 +15,36 @@ class MaterialService {
   static const String _tableName = 'study_materials';
 
   Future<String> uploadMaterialFile({
-    required Object file,
+    required dynamic file, // Uint8List or io.File
     required String fileName,
     required String facultyId,
     required String subjectId,
     required String chapterId,
   }) async {
-    final storagePath = _buildStoragePath(
-      subjectId: subjectId,
-      chapterId: chapterId,
-      facultyId: facultyId,
-      fileName: fileName,
-    );
+    final path =
+        'materials/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
 
     try {
       if (file is Uint8List) {
-        await _client.storage.from(_bucketName).uploadBinary(
-              storagePath,
-              file,
-              fileOptions: const FileOptions(upsert: false),
-            );
+        await _client.storage.from('study-materials').uploadBinary(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
       } else if (file is io.File) {
-        await _client.storage.from(_bucketName).upload(
-              storagePath,
-              file,
-              fileOptions: const FileOptions(upsert: false),
-            );
+        await _client.storage.from('study-materials').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
       } else {
-        throw Exception('Unsupported file type');
+        throw Exception('Unsupported file type: ${file.runtimeType}');
       }
-      return storagePath;
+      return path;
     } on StorageException catch (e) {
       throw Exception('Storage upload failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Unexpected upload error: $e');
     }
   }
 
@@ -85,41 +84,37 @@ class MaterialService {
       'storage_path': storagePath,
       'material_type': materialType,
       'file_size_kb': fileSizeKb,
-      'is_visible': isVisible,
-    }).select().single();
+    };
 
-    return StudyMaterialModel.fromJson(response);
+    try {
+      final response = await _client
+          .schema('academy')
+          .from('study_materials')
+          .insert(payload)
+          .select()
+          .single();
+
+      return Map<String, dynamic>.from(response as Map);
+    } on PostgrestException catch (e) {
+      throw Exception('Database Error: ${e.message} (Code: ${e.code})');
+    } catch (e) {
+      throw Exception('Unexpected Database Error: $e');
+    }
   }
 
-  Future<List<StudyMaterialModel>> fetchMaterialsBySubjectAndChapter({
-    required String subjectId,
-    required String chapterId,
+  Future<void> recordView({
+    required String materialId,
+    required String studentId,
   }) async {
-    final response = await _client
-        .from(_tableName)
-        .select()
-        .eq('subject_id', subjectId)
-        .eq('chapter_id', chapterId)
-        .eq('is_visible', true)
-        .order('uploaded_at', ascending: false);
-
-    return (response as List)
-        .map((item) => StudyMaterialModel.fromJson(item))
-        .toList();
-  }
-
-  String getPublicUrl(String storagePath) {
-    return _client.storage.from(_bucketName).getPublicUrl(storagePath);
-  }
-
-  String _buildStoragePath({
-    required String subjectId,
-    required String chapterId,
-    required String facultyId,
-    required String fileName,
-  }) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final safeFileName = fileName.trim().replaceAll(RegExp(r'\s+'), '_');
-    return '$subjectId/$chapterId/${facultyId}_$timestamp\_$safeFileName';
+    try {
+      await _client.schema('academy').from('content_views').insert({
+        'content_id': materialId,
+        'content_type': 'material',
+        'student_id': studentId,
+      });
+    } catch (e) {
+      // Silently fail as view recording shouldn't block the user
+      debugPrint('Error recording material view: $e');
+    }
   }
 }

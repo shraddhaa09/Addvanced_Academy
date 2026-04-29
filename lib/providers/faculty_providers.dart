@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -51,37 +52,51 @@ FutureProvider.autoDispose<List<SubjectModel>>((ref) async {
 
 final chaptersProvider =
 FutureProvider.autoDispose.family<List<ChapterModel>, String>(
-      (ref, subjectId) async {
-    if (subjectId.isEmpty) return [];
-
-    final service = ref.watch(chapterServiceProvider);
-    return service.fetchChaptersBySubject(subjectId);
-  },
-);
+        (ref, subjectId) async {
+      if (subjectId.isEmpty) return [];
+      final service = ref.watch(chapterServiceProvider);
+      return service.fetchChaptersBySubject(subjectId);
+    });
 
 final currentFacultyIdProvider = Provider.autoDispose<String?>((ref) {
   final authState = ref.watch(authProvider);
+  final authId = authState.userId;
+  if (authId == null) return null;
 
-  if (authState.role == AppUserRole.faculty) {
-    return authState.userId;
+  try {
+    final row = await Supabase.instance.client
+        .schema('academy')
+        .from('users')
+        .select('id')
+        .eq('auth_id', authId)
+        .maybeSingle();
+
+    if (row == null) {
+      debugPrint('No faculty row found for auth user: $authId');
+      return null;
+    }
+
+    return row['id'] as String?;
+  } catch (e) {
+    debugPrint('Error in currentFacultyIdProvider: $e');
+    return null;
   }
-
-  return null;
 });
 
 final recentFacultyUploadsProvider =
-FutureProvider.autoDispose<List<FacultyUploadModel>>((ref) async {
+FutureProvider.autoDispose.family<List<FacultyUploadModel>, int?>(
+    (ref, limit) async {
   final facultyId = ref.watch(currentFacultyIdProvider);
-  if (facultyId == null || facultyId.isEmpty) return [];
+  if (facultyId == null) return [];
 
   final service = ref.watch(facultyUploadServiceProvider);
-  return service.fetchRecentUploads(facultyId);
+  final uploads = await service.fetchRecentUploads(facultyId);
+  return limit != null ? uploads.take(limit).toList() : uploads;
 });
 
-final facultyProfileProvider =
-FutureProvider.autoDispose<FacultyModel?>((ref) async {
+final facultyProfileProvider = FutureProvider.autoDispose<FacultyModel?>((ref) async {
   final facultyId = ref.watch(currentFacultyIdProvider);
-  if (facultyId == null || facultyId.isEmpty) return null;
+  if (facultyId == null) return null;
 
   final service = ref.watch(facultyServiceProvider);
   return service.fetchProfile(facultyId);
@@ -90,27 +105,35 @@ FutureProvider.autoDispose<FacultyModel?>((ref) async {
 final facultyStatsProvider =
 FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final facultyId = ref.watch(currentFacultyIdProvider);
-
-  if (facultyId == null || facultyId.isEmpty) {
-    return {
-      'videos': 0,
-      'materials': 0,
-      'total_uploads': 0,
-      'students': 0,
-    };
+  if (facultyId == null) {
+    return {'videos': 0, 'materials': 0, 'total_uploads': 0, 'students': 0};
   }
 
   final service = ref.watch(facultyServiceProvider);
   return service.fetchFacultyStats(facultyId);
 });
 
+final contentViewCountsProvider =
+    FutureProvider.autoDispose.family<Map<String, int>, String>((ref, facultyId) async {
+  final service = ref.watch(facultyServiceProvider);
+  return service.fetchContentViewCounts(facultyId);
+});
+
 final timetableProvider =
 FutureProvider.autoDispose.family<List<TimetableModel>, String>(
-      (ref, dayOfWeek) async {
-    final facultyId = ref.watch(currentFacultyIdProvider);
-    if (facultyId == null || facultyId.isEmpty) return [];
+        (ref, dayOfWeek) async {
+      final facultyId = ref.watch(currentFacultyIdProvider);
+      if (facultyId == null) return [];
 
-    final service = ref.watch(timetableServiceProvider);
-    return service.fetchScheduleByDay(facultyId, dayOfWeek);
-  },
-);
+      final service = ref.watch(timetableServiceProvider);
+      return service.fetchScheduleByDay(facultyId, dayOfWeek);
+    });
+
+final facultyScheduleProvider =
+FutureProvider.autoDispose<List<TimetableModel>>((ref) async {
+  final facultyId = ref.watch(currentFacultyIdProvide);
+  if (facultyId == null) return [];
+
+  final service = ref.watch(timetableServiceProvider);
+  return service.fetchFacultySchedule(facultyId);
+});

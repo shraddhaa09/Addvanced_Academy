@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/route_constants.dart';
 import '../../../providers/faculty_providers.dart';
 import '../../../models/faculty_upload_model.dart';
 
@@ -51,7 +50,15 @@ class _EditUploadScreenState extends ConsumerState<EditUploadScreen> {
         isVisible: _isVisible,
       );
 
-      ref.invalidate(recentFacultyUploadsProvider);
+      // Invalidate the list and stats to ensure UI updates
+      ref.invalidate(recentFacultyUploadsProvider(null));
+      ref.invalidate(facultyStatsProvider);
+
+      // Also invalidate view counts in case visibility/stats changed
+      final facultyId = ref.read(currentFacultyIdProvider);
+      if (facultyId != null) {
+        ref.invalidate(contentViewCountsProvider(facultyId));
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

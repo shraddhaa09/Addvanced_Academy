@@ -32,6 +32,11 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
   String? _fileName;
   int? _fileSizeBytes;
 
+
+  dynamic _selectedFile; // Uint8List (web) or io.File (native)
+  String? _fileName;
+  int? _fileSizeBytes;
+
   bool _isUploading = false;
 
   @override
@@ -46,7 +51,12 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
       withData: kIsWeb,
+      withData: kIsWeb,
     );
+
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.single;
+
 
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.single;
@@ -59,11 +69,22 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
         }
         _fileName = file.name;
         _fileSizeBytes = file.size;
+        if (kIsWeb) {
+          _selectedFile = file.bytes;
+        } else {
+          _selectedFile = io.File(file.path!);
+        }
+        _fileName = file.name;
+        _fileSizeBytes = file.size;
       });
     }
   }
 
   Future<void> _upload() async {
+    if (!_formKey.currentState!.validate() ||
+        _selectedSubject == null ||
+        _selectedChapter == null ||
+        _selectedFile == null) {
     if (!_formKey.currentState!.validate() ||
         _selectedSubject == null ||
         _selectedChapter == null ||
@@ -92,6 +113,8 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
       final storagePath = await materialService.uploadMaterialFile(
         file: _selectedFile,
         fileName: _fileName!,
+        file: _selectedFile,
+        fileName: _fileName!,
         facultyId: facultyId,
         subjectId: subjectId,
         chapterId: chapterId,
@@ -105,6 +128,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
         storagePath: storagePath,
         description: _descriptionController.text.trim(),
         materialType: _materialType,
+        fileSizeKb: (_fileSizeBytes! / 1024).round(),
         fileSizeKb: (_fileSizeBytes! / 1024).round(),
         isVisible: _isVisible,
       );
@@ -148,6 +172,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsProvider);
+    final chaptersAsync = _selectedSubject != null
     final chaptersAsync = _selectedSubject != null
         ? ref.watch(chaptersProvider(_selectedSubject!.id))
         : const AsyncValue.data(<ChapterModel>[]);

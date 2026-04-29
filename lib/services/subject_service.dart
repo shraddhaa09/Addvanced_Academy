@@ -9,12 +9,15 @@ class SubjectService {
 
   Future<List<SubjectModel>> fetchSubjects() async {
     final response = await _client
+        .schema('academy')
         .from('subjects')
-        .select()
-        .order('name', ascending: true);
+        .select('id, name, label, created_at')
+        .order('name');
 
-    return (response as List)
-        .map((item) => SubjectModel.fromJson(item))
+    return (response as List<dynamic>)
+        .map((json) => SubjectModel.fromJson(
+      Map<String, dynamic>.from(json as Map),
+    ))
         .toList();
   }
 }

@@ -10,6 +10,7 @@ class TimetableService {
   Future<List<TimetableModel>> fetchFacultySchedule(String facultyId) async {
     try {
       final response = await _client
+          .schema('academy')
           .from('timetable')
           .select()
           .eq('faculty_id', facultyId)
@@ -24,6 +25,7 @@ class TimetableService {
   Future<List<TimetableModel>> fetchScheduleByDay(String facultyId, String dayOfWeek) async {
     try {
       final response = await _client
+          .schema('academy')
           .from('timetable')
           .select()
           .eq('faculty_id', facultyId)
