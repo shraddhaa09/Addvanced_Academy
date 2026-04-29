@@ -32,15 +32,16 @@ class StudentDashboardScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: const _DashboardAppBar(),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(studentAnnouncementsProvider);
-            ref.invalidate(studentRecentUploadsProvider);
-            ref.invalidate(studentProfileProvider);
-          },
-          child: profileAsync.when(
-            data: (profile) => ListView(
+        child: profileAsync.when(
+          data: (profile) => RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(studentAnnouncementsProvider.future);
+              await ref.read(studentRecentUploadsProvider(3).future);
+              ref.invalidate(studentProfileProvider);
+            },
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 _GreetingSection(
                   greeting: _greeting(),
@@ -98,8 +99,18 @@ class StudentDashboardScreen extends ConsumerWidget {
                 const _RecentUploadsSection(),
               ],
             ),
-            loading: () => const DashboardSkeleton(),
-            error: (e, _) => Center(child: Text('Error: $e')),
+          ),
+          loading: () => const DashboardSkeleton(),
+          error: (e, _) => RefreshIndicator(
+            onRefresh: () async => ref.invalidate(studentProfileProvider),
+            child: ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Center(child: Text('Error: $e')),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -107,14 +118,14 @@ class StudentDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
+class _DashboardAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const _DashboardAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -172,7 +183,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.only(right: 8),
           child: IconButton(
             icon: const Icon(Icons.logout_rounded, color: Color(0xFF1A1A2E), size: 24),
-            onPressed: () => ProviderScope.containerOf(context).read(authProvider.notifier).signOut(),
+            onPressed: () => ref.read(authProvider.notifier).signOut(),
             tooltip: 'Logout',
           ),
         ),

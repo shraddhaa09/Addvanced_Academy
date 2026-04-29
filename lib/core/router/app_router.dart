@@ -266,9 +266,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // =========================================================
       // STUDENT SHELL
       // =========================================================
-      // =========================================================
-      // STUDENT SHELL
-      // =========================================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return StudentScaffold(navigationShell: navigationShell);
