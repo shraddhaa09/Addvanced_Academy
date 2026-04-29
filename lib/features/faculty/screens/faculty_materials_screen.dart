@@ -52,8 +52,6 @@ class _FacultyMaterialsScreenState
   final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';
-
-  /// 'all' | 'material' | 'video'
   String _activeFilter = 'all';
 
   static const _filters = [
@@ -75,8 +73,7 @@ class _FacultyMaterialsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final uploadsAsync =
-    ref.watch(recentFacultyUploadsProvider(null));
+    final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
     final profileAsync = ref.watch(facultyProfileProvider);
     final statsAsync = ref.watch(facultyStatsProvider);
     final facultyIdAsync = ref.watch(currentFacultyIdProvider);
@@ -129,42 +126,7 @@ class _FacultyMaterialsScreenState
                 const SizedBox(height: 12),
                 _buildFilterChips(),
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Text(
-                      'Uploads',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                    ),
-                    const Spacer(),
-                    uploadsAsync.maybeWhen(
-                      data: (uploads) {
-                        final count = uploads
-                            .where((u) =>
-                                _activeFilter == 'all' ||
-                                u.contentType == _activeFilter)
-                            .where((u) =>
-                                _searchQuery.isEmpty ||
-                                u.title
-                                    .toLowerCase()
-                                    .contains(_searchQuery))
-                            .length;
-                        return Text(
-                          '$count item${count == 1 ? '' : 's'}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9CA3AF),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        );
-                      },
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+                _buildUploadCountHeader(uploadsAsync),
                 const SizedBox(height: 12),
                 _buildList(uploadsAsync, facultyIdAsync),
                 const SizedBox(height: 100),
@@ -176,7 +138,31 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  // HEADER
+  Widget _buildUploadCountHeader(AsyncValue<List<FacultyUploadModel>> uploadsAsync) {
+    return Row(
+      children: [
+        const Text(
+          'Uploads',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
+        ),
+        const Spacer(),
+        uploadsAsync.maybeWhen(
+          data: (uploads) {
+            final count = uploads
+                .where((u) => _activeFilter == 'all' || u.contentType == _activeFilter)
+                .where((u) => _searchQuery.isEmpty || u.title.toLowerCase().contains(_searchQuery))
+                .length;
+            return Text(
+              '$count item${count == 1 ? '' : 's'}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500),
+            );
+          },
+          orElse: () => const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader(AsyncValue<dynamic> profileAsync) {
     return profileAsync.when(
       data: (profile) {
@@ -188,14 +174,7 @@ class _FacultyMaterialsScreenState
             CircleAvatar(
               radius: 20,
               backgroundColor: color.withAlpha(30),
-              child: Text(
-                _initials(name),
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
+              child: Text(_initials(name), style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
             const SizedBox(width: 12),
             Column(
@@ -203,36 +182,28 @@ class _FacultyMaterialsScreenState
               children: [
                 Text(
                   'Hello, ${name?.split(' ').first ?? 'Professor'}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: Color(0xFF1A1A2E),
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1A2E)),
                 ),
                 if (subject != null)
-                  Text(
-                    subject,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: color,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  Text(subject, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
               ],
             ),
             const Spacer(),
             IconButton(
-              icon: const Icon(Icons.campaign_outlined,
-                  color: Color(0xFF1A1A2E)),
-              onPressed: () => context.push(
-                  '${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
-              tooltip: 'Notices',
+              icon: const Icon(Icons.campaign_outlined, color: Color(0xFF1A1A2E)),
+              onPressed: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.facultyAnnouncements}'),
             ),
           ],
         );
       },
       loading: () => const Row(
         children: [
+          const _ShimmerBox(width: 40, height: 40, borderRadius: 20),
+          const SizedBox(width: 12),
+          _ShimmerBox(width: 140, height: 16, borderRadius: 8),
+        ],
+      ),
+      error: (err, stack) => const Text('Error loading profile'),
           ShimmerBox(width: 40, height: 40, borderRadius: 20),
           SizedBox(width: 12),
           ShimmerBox(width: 140, height: 16, borderRadius: 8),
@@ -242,19 +213,14 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  // ── Latest Upload — gradient hero card ────────────────────────────────────
-
   Widget _buildLatestUpload(AsyncValue uploadsAsync) {
     return uploadsAsync.when(
       data: (uploads) {
-        final latest = uploads.isNotEmpty ? uploads.first : null;
+        final latest = (uploads as List).isNotEmpty ? uploads.first : null;
         if (latest == null) return const SizedBox.shrink();
 
         final isVideo = latest.contentType.toLowerCase() == 'video';
-        final accent =
-            isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E);
-        final lightAccent =
-            isVideo ? const Color(0xFF7C6FE0) : const Color(0xFF3BAD8A);
+        final accent = isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E);
 
         return GestureDetector(
           onTap: () => _viewItem(latest),
@@ -262,134 +228,38 @@ class _FacultyMaterialsScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [accent, lightAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: LinearGradient(colors: [accent, accent.withAlpha(180)], begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withAlpha(60),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
-            child: Stack(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Background icon
-                Positioned(
-                  right: -12,
-                  bottom: -12,
-                  child: Icon(
-                    isVideo
-                        ? Icons.play_circle_fill_rounded
-                        : Icons.menu_book_rounded,
-                    size: 100,
-                    color: Colors.white.withAlpha(20),
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(40),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            isVideo ? 'Latest Video' : 'Latest Material',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        const Icon(Icons.open_in_new_rounded,
-                            color: Colors.white70, size: 16),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      latest.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${latest.subject}  ·  ${latest.chapter}',
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      latest.uploadedAt != null
-                          ? 'Uploaded ${timeago.format(latest.uploadedAt!)}'
-                          : 'Recently uploaded',
-                      style: const TextStyle(
-                          color: Colors.white60, fontSize: 11),
-                    ),
-                  ],
-                ),
+                Text(latest.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
+                Text('${latest.subject} · ${latest.chapter}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
         );
       },
+      loading: () => const _ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
       loading: () =>
           const ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
-
   Widget _buildStats(AsyncValue statsAsync) {
     return statsAsync.when(
       data: (stats) => Row(
         children: [
-          Expanded(
-            child: _StatCard(
-              label: 'Videos',
-              value: '${stats['videos']}',
-              icon: Icons.video_library_outlined,
-              color: const Color(0xFF5B4FCF),
-            ),
-          ),
+          Expanded(child: _StatCard(label: 'Videos', value: '${stats['videos']}', icon: Icons.video_library_outlined, color: const Color(0xFF5B4FCF))),
           const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Materials',
-              value: '${stats['materials']}',
-              icon: Icons.description_outlined,
-              color: const Color(0xFF1E8C6E),
-            ),
-          ),
+          Expanded(child: _StatCard(label: 'Materials', value: '${stats['materials']}', icon: Icons.description_outlined, color: const Color(0xFF1E8C6E))),
           const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Total',
-              value: '${stats['total_uploads']}',
-              icon: Icons.cloud_done_outlined,
-              color: const Color(0xFFE65100),
-            ),
-          ),
+          Expanded(child: _StatCard(label: 'Total', value: '${stats['total_uploads']}', icon: Icons.cloud_done_outlined, color: const Color(0xFFE65100))),
         ],
       ),
+      loading: () => Row(children: List.generate(3, (_) => const Expanded(child: Padding(padding: EdgeInsets.symmetric(horizontal: 5), child: _ShimmerBox(width: double.infinity, height: 84, borderRadius: 14))))),
       loading: () => const Row(
         children: [
           Expanded(
@@ -409,46 +279,19 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  // ── Search ────────────────────────────────────────────────────────────────
-
   Widget _buildSearch() {
     return TextField(
       controller: _searchController,
-      onChanged: (val) =>
-          setState(() => _searchQuery = val.toLowerCase().trim()),
+      onChanged: (val) => setState(() => _searchQuery = val.toLowerCase().trim()),
       decoration: InputDecoration(
-        prefixIcon:
-            const Icon(Icons.search_rounded, size: 20, color: Color(0xFF9CA3AF)),
-        suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear_rounded,
-                    size: 18, color: Color(0xFF9CA3AF)),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              )
-            : null,
+        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF9CA3AF)),
         hintText: 'Search by title, subject…',
-        hintStyle:
-            const TextStyle(color: Color(0xFFB0B8C4), fontSize: 14),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Color(0xFF5B4FCF), width: 1.5),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
       ),
     );
   }
-
-  // ── Filter chips ──────────────────────────────────────────────────────────
 
   Widget _buildFilterChips() {
     return SingleChildScrollView(
@@ -461,36 +304,11 @@ class _FacultyMaterialsScreenState
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
               selected: selected,
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon,
-                      size: 14,
-                      color: selected
-                          ? Colors.white
-                          : const Color(0xFF6B7280)),
-                  const SizedBox(width: 5),
-                  Text(label),
-                ],
-              ),
-              labelStyle: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF6B7280),
-              ),
+              label: Text(label),
+              onSelected: (_) => setState(() => _activeFilter = key),
               backgroundColor: Colors.white,
               selectedColor: const Color(0xFF5B4FCF),
-              checkmarkColor: Colors.white,
-              showCheckmark: false,
-              side: BorderSide(
-                color: selected
-                    ? const Color(0xFF5B4FCF)
-                    : const Color(0xFFE5E7EB),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onSelected: (_) => setState(() => _activeFilter = key),
+              labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
             ),
           );
         }).toList(),
@@ -498,61 +316,36 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  // ── List ──────────────────────────────────────────────────────────────────
-
-  Widget _buildList(
-    AsyncValue<List<FacultyUploadModel>> uploadsAsync,
-    AsyncValue<String?> facultyIdAsync,
-  ) {
+  Widget _buildList(AsyncValue<List<FacultyUploadModel>> uploadsAsync, AsyncValue<String?> facultyIdAsync) {
     return facultyIdAsync.when(
       data: (facultyId) {
         if (facultyId == null) return const SizedBox();
-
-        final viewCountsAsync =
-            ref.watch(contentViewCountsProvider(facultyId));
+        final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId));
 
         return viewCountsAsync.when(
-          data: (viewCounts) {
-            return uploadsAsync.when(
-              data: (uploads) {
-                final filtered = uploads
-                    .where((u) =>
-                        _activeFilter == 'all' ||
-                        u.contentType == _activeFilter)
-                    .where((u) =>
-                        _searchQuery.isEmpty ||
-                        u.title.toLowerCase().contains(_searchQuery) ||
-                        u.subject.toLowerCase().contains(_searchQuery))
-                    .toList();
+          data: (viewCounts) => uploadsAsync.when(
+            data: (uploads) {
+              final filtered = uploads
+                  .where((u) => _activeFilter == 'all' || u.contentType == _activeFilter)
+                  .where((u) => _searchQuery.isEmpty || u.title.toLowerCase().contains(_searchQuery))
+                  .toList();
 
-                if (filtered.isEmpty) {
-                  return _EmptyState(
-                      query: _searchQuery, filter: _activeFilter);
-                }
+              if (filtered.isEmpty) return _EmptyState(query: _searchQuery, filter: _activeFilter);
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final item = filtered[index];
-                    return RecentUploadTile(
-                      upload: item,
-                      viewCount: viewCounts[item.id],
-                      onTap: () => _viewItem(item),
-                      onEdit: () => context.push(
-                        '${RouteConstants.facultyDashboard}/${RouteConstants.editUpload}',
-                        extra: item,
-                      ),
-                      onDelete: () => _confirmDelete(context, item),
-                    );
-                  },
-                );
-              },
-              loading: () => _buildShimmerList(),
-              error: (e, _) => _buildError(),
-            );
-          },
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) => RecentUploadTile(
+                  upload: filtered[index],
+                  viewCount: viewCounts[filtered[index].id],
+                  onTap: () => _viewItem(filtered[index]),
+                ),
+              );
+            },
+            loading: () => _buildShimmerList(),
+            error: (e, _) => _buildError(),
+          ),
           loading: () => _buildShimmerList(),
           error: (e, _) => _buildError(),
         );
@@ -564,12 +357,12 @@ class _FacultyMaterialsScreenState
 
   void _viewItem(FacultyUploadModel item) {
     final isVideo = item.contentType.toLowerCase() == 'video';
-    final route =
-        isVideo ? RouteConstants.videoViewer : RouteConstants.materialViewer;
+    final route = isVideo ? RouteConstants.videoViewer : RouteConstants.materialViewer;
     context.push('${RouteConstants.facultyDashboard}/$route', extra: item);
   }
 
   Widget _buildShimmerList() {
+    return Column(children: List.generate(3, (_) => const Padding(padding: EdgeInsets.only(bottom: 12), child: _ShimmerBox(width: double.infinity, height: 80, borderRadius: 12))));
     return Column(
       children: List.generate(
         3,
@@ -582,88 +375,7 @@ class _FacultyMaterialsScreenState
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Column(
-          children: [
-            const Icon(Icons.wifi_off_rounded,
-                size: 44, color: Color(0xFFB0B8C4)),
-            const SizedBox(height: 12),
-            const Text(
-              'Could not load uploads',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280)),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Retry'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF5B4FCF),
-                side: const BorderSide(color: Color(0xFF5B4FCF)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Delete Confirmation ────────────────────────────────────────────────────
-
-  Future<void> _confirmDelete(
-      BuildContext context, FacultyUploadModel item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 32),
-        title: const Text(
-          'Delete This Upload?',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'This will permanently remove "${item.title}" and it will no longer '
-          'be accessible to students. This cannot be undone.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.black54, height: 1.5),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(120, 44),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Cancel'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-              minimumSize: const Size(120, 44),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildError() => const Center(child: Text('Could not load uploads'));
 }
 
 // ---------------------------------------------------------------------------
@@ -671,62 +383,23 @@ class _FacultyMaterialsScreenState
 // ---------------------------------------------------------------------------
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
+  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
+  final String label, value;
   final IconData icon;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withAlpha(30)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withAlpha(20),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-                color: Color(0xFF9CA3AF),
-                fontSize: 11,
-                fontWeight: FontWeight.w500),
-          ),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: color)),
+          Text(label, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11)),
         ],
       ),
     );
@@ -735,59 +408,56 @@ class _StatCard extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({this.query = '', this.filter = 'all'});
-
-  final String query;
-  final String filter;
+  final String query, filter;
 
   @override
   Widget build(BuildContext context) {
-    final isSearch = query.isNotEmpty;
-    final isFiltered = filter != 'all';
-    final label = isSearch
-        ? 'No results for "$query"'
-        : isFiltered
-            ? 'No ${filter == 'video' ? 'videos' : 'materials'} uploaded yet'
-            : 'No uploads yet';
-    final sub = isSearch || isFiltered
-        ? 'Try adjusting your search or filter.'
-        : 'Tap "Upload Material" below to get started.';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
+    return Center(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEECFD),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              isSearch ? Icons.search_off_rounded : Icons.upload_file_outlined,
-              size: 36,
-              color: const Color(0xFF5B4FCF),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            sub,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF9CA3AF),
-              height: 1.5,
-            ),
-          ),
+          const SizedBox(height: 40),
+          const Icon(Icons.upload_file_outlined, size: 40, color: Color(0xFF5B4FCF)),
+          const SizedBox(height: 10),
+          Text(query.isEmpty ? 'No uploads yet' : 'No results found'),
         ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  final double width, height, borderRadius;
+  const _ShimmerBox({super.key, required this.width, required this.height, required this.borderRadius});
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.4, end: 0.8).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(widget.borderRadius)),
       ),
     );
   }

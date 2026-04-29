@@ -192,6 +192,27 @@ class _DashboardAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF6B7280),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
 class _GreetingSection extends StatelessWidget {
   final String greeting;
   final String name;
@@ -204,12 +225,12 @@ class _GreetingSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$greeting, $name',
+          '$greeting, $name!',
           style: const TextStyle(
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w800,
             color: Color(0xFF1A1A2E),
-            letterSpacing: -0.4,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 4),
@@ -222,24 +243,6 @@ class _GreetingSection extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF6B7280),
-        letterSpacing: 0.6,
-      ),
     );
   }
 }
