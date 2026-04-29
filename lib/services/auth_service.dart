@@ -5,8 +5,6 @@ class AuthService {
 
   final SupabaseClient _client;
 
-  Session? get currentSession => _client.auth.currentSession;
-
   User? get currentUser => _client.auth.currentUser;
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;

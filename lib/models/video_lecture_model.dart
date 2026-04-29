@@ -1,63 +1,95 @@
 class VideoLectureModel {
-  final String? id;
-  final String facultyId;
-  final String subjectId;
-  final String chapterId;
-  final String title;
-  final String? description;
-  final String storagePath;
-  final int? durationSec;
-  final int? fileSizeKb;
-  final bool isVisible;
-  final DateTime? uploadedAt;
-  final DateTime? updatedAt;
-
   const VideoLectureModel({
-    this.id,
+    required this.id,
     required this.facultyId,
     required this.subjectId,
     required this.chapterId,
     required this.title,
-    this.description,
     required this.storagePath,
+    required this.isVisible,
+    required this.uploadedAt,
+    this.description,
     this.durationSec,
     this.fileSizeKb,
-    this.isVisible = true,
-    this.uploadedAt,
     this.updatedAt,
   });
 
+  final String id;
+  final String facultyId;
+  final String subjectId;
+  final String chapterId;
+  final String title;
+  final String storagePath;
+  final bool isVisible;
+  final DateTime uploadedAt;
+  final String? description;
+  final int? durationSec;
+  final int? fileSizeKb;
+  final DateTime? updatedAt;
+
   factory VideoLectureModel.fromJson(Map<String, dynamic> json) {
     return VideoLectureModel(
-      id: json['id'] as String?,
-      facultyId: json['faculty_id'] as String? ?? '',
-      subjectId: json['subject_id'] as String? ?? '',
-      chapterId: json['chapter_id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
+      id: json['id'] as String,
+      facultyId: json['faculty_id'] as String,
+      subjectId: json['subject_id'] as String,
+      chapterId: json['chapter_id'] as String,
+      title: json['title'] as String,
+      storagePath: json['storage_path'] as String,
+      isVisible: (json['is_visible'] as bool?) ?? true,
+      uploadedAt: DateTime.parse(json['uploaded_at'] as String),
       description: json['description'] as String?,
-      storagePath: json['storage_path'] as String? ?? '',
       durationSec: json['duration_sec'] as int?,
       fileSizeKb: json['file_size_kb'] as int?,
-      isVisible: json['is_visible'] as bool? ?? true,
-      uploadedAt: json['uploaded_at'] == null ? null : DateTime.tryParse(json['uploaded_at'].toString()),
-      updatedAt: json['updated_at'] == null ? null : DateTime.tryParse(json['updated_at'].toString()),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) 'id': id,
+      'id': id,
       'faculty_id': facultyId,
       'subject_id': subjectId,
       'chapter_id': chapterId,
       'title': title,
-      if (description != null) 'description': description,
+      'description': description,
       'storage_path': storagePath,
-      if (durationSec != null) 'duration_sec': durationSec,
-      if (fileSizeKb != null) 'file_size_kb': fileSizeKb,
+      'duration_sec': durationSec,
+      'file_size_kb': fileSizeKb,
       'is_visible': isVisible,
-      if (uploadedAt != null) 'uploaded_at': uploadedAt!.toIso8601String(),
-      if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+      'uploaded_at': uploadedAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
+  }
+
+  VideoLectureModel copyWith({
+    String? id,
+    String? facultyId,
+    String? subjectId,
+    String? chapterId,
+    String? title,
+    String? storagePath,
+    bool? isVisible,
+    DateTime? uploadedAt,
+    String? description,
+    int? durationSec,
+    int? fileSizeKb,
+    DateTime? updatedAt,
+  }) {
+    return VideoLectureModel(
+      id: id ?? this.id,
+      facultyId: facultyId ?? this.facultyId,
+      subjectId: subjectId ?? this.subjectId,
+      chapterId: chapterId ?? this.chapterId,
+      title: title ?? this.title,
+      storagePath: storagePath ?? this.storagePath,
+      isVisible: isVisible ?? this.isVisible,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+      description: description ?? this.description,
+      durationSec: durationSec ?? this.durationSec,
+      fileSizeKb: fileSizeKb ?? this.fileSizeKb,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

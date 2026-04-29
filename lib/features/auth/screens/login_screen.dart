@@ -26,9 +26,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     await ref.read(authProvider.notifier).signIn(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
   }
 
   @override
@@ -117,12 +117,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: authState.isLoading ? null : _handleLogin,
                         child: authState.isLoading
                             ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                ),
-                              )
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                          ),
+                        )
                             : const Text('Login'),
                       ),
                     ),

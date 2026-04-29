@@ -2,8 +2,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/faculty_upload_model.dart';
 
 class FacultyUploadService {
+  FacultyUploadService([SupabaseClient? client])
+      : _client = client ?? Supabase.instance.client;
+
   final SupabaseClient _client;
-  FacultyUploadService(this._client);
 
   Future<List<FacultyUploadModel>> fetchRecentUploads(String facultyId) async {
     final response = await _client

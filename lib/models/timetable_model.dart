@@ -48,4 +48,5 @@ class TimetableModel {
       'type': type,
     };
   }
+
 }

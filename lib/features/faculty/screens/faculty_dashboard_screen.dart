@@ -152,7 +152,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     icon: Icons.play_circle_fill_rounded,
                     iconBackground: const Color(0xFFEEECFD),
                     iconColor: const Color(0xFF5B5FEF),
-                    onTap: () => context.go(RouteConstants.uploadVideo),
+                    onTap: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.uploadVideo}'),
                   ),
                   const SizedBox(height: 12),
                   _FacultyActionTile(
@@ -161,52 +161,12 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     icon: Icons.menu_book_rounded,
                     iconBackground: const Color(0xFFE6F4F1),
                     iconColor: const Color(0xFF2BB5A0),
-                    onTap: () => context.go(RouteConstants.uploadMaterial),
+                    onTap: () => context.push('${RouteConstants.facultyDashboard}/${RouteConstants.uploadMaterial}'),
                   ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 60,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _BottomNavItem(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Home',
-                  active: _selectedIndex == 0,
-                  onTap: () => _onNavTap(0),
-                ),
-                _BottomNavItem(
-                  icon: Icons.calendar_month_rounded,
-                  label: 'Schedule',
-                  active: _selectedIndex == 1,
-                  onTap: () => _onNavTap(1),
-                ),
-                _BottomNavItem(
-                  icon: Icons.library_books_rounded,
-                  label: 'Materials',
-                  active: _selectedIndex == 2,
-                  onTap: () => _onNavTap(2),
-                ),
-                _BottomNavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Profile',
-                  active: _selectedIndex == 3,
-                  onTap: () => _onNavTap(3),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -285,7 +245,7 @@ class _FacultyActionTile extends StatelessWidget {
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

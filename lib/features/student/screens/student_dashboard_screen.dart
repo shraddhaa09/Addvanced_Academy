@@ -29,11 +29,6 @@ class StudentDashboardScreen extends ConsumerWidget {
         route: RouteConstants.materialSubjects,
       ),
       _DashboardItem(
-        title: 'Syllabus',
-        icon: Icons.picture_as_pdf_rounded,
-        route: RouteConstants.syllabus,
-      ),
-      _DashboardItem(
         title: 'Timetable',
         icon: Icons.calendar_today_rounded,
         route: RouteConstants.studentTimetable,

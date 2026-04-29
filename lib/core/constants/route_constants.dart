@@ -1,54 +1,54 @@
 class RouteConstants {
-  // AUTH
+  const RouteConstants._();
+
+  static const String landing = '/';
   static const String login = '/login';
+
+  // Admin
   static const String adminDashboard = '/admin';
+
+  // Faculty
   static const String facultyDashboard = '/faculty';
+  static const String facultySchedule = '/faculty/schedule';
+  static const String facultyMaterials = '/faculty/materials';
+  static const String facultyProfile = '/faculty/profile';
 
-  static const String uploadVideo = '/faculty/upload-video';
-  static const String uploadMaterial = '/faculty/upload-material';
+  // Faculty Sub-routes (Relative paths for nesting)
+  static const String uploadVideo = 'upload-video';
+  static const String uploadMaterial = 'upload-material';
+  static const String editUpload = 'edit-upload';
 
-  static const String questionBank = '/question-bank';
-  static const String addQuestion = '/add-question';
+  // Faculty Profile Sub-routes (Relative paths)
+  static const String personalDetails = 'personal-details';
+  static const String mySubjects = 'my-subjects';
+  static const String uploadHistory = 'upload-history';
+  static const String helpSupport = 'help-support';
 
-  static const String createTest = '/create-test';
-  static const String assignTest = '/assign-test';
+  // Student
+  static const String studentDashboard = '/student';
 
-  static const String timetable = '/timetable';
+  // Student Tests
+  static const String assignedTests = '/student/tests';
+  static const String testSelection = '/student/test-selection';
+  static const String chapterSelection = '/student/tests/chapters';
+  static const String testConfirmation = '/student/tests/confirmation';
+  static const String testEngine = '/student/tests/engine';
+  static const String result = '/student/tests/result';
+  static const String answerReview = '/student/tests/review';
 
-  // ===========================
-  // FACULTY MODULE
-  // ===========================
-  static const String uploadVideo = '/upload-video';
-  static const String uploadMaterial = '/upload-material';
+  // Student Videos
+  static const String videoSubjects = '/student/videos';
+  static const String videoList = '/student/videos/:subject';
+  static const String videoPlayer = '/student/video-player';
 
-  // ===========================
-  // STUDENT MODULE
-  // ===========================
+  // Student Materials
+  static const String materialSubjects = '/student/materials';
+  static const String materialChapters = '/student/materials/:subject/chapters';
+  static const String materialList = '/student/materials/:subject/:chapter';
 
-  // VIDEO FLOW (video_lectures table)
-  static const String videoSubjects = '/video-subjects';
-  static const String videoList = '/video-list';
-  static const String videoPlayer = '/video-player';
+  // Student Timetable
+  static const String studentTimetable = '/student/timetable';
 
-  // MATERIAL FLOW (study_materials table)
-  static const String materialSubjects = '/material-subjects';
-  static const String materialChapters = '/material-chapters';
-  static const String materialList = '/material-list';
-
-  // SYLLABUS
-  static const String syllabus = '/syllabus';
-
-  // TIMETABLE
-  static const String studentTimetable = '/student-timetable';
-
-  // ===========================
-  // TEST MODULE (SCHEMA CORE)
-  // ===========================
-  static const String assignedTests = '/assigned-tests';
-  static const String testSelection = '/test-selection';
-  static const String chapterSelection = '/chapter-selection';
-  static const String testConfirmation = '/test-confirmation';
-  static const String testEngine = '/test-engine';
-  static const String result = '/result';
-  static const String answerReview = '/answer-review';
+  // Student Syllabus
+  static const String studentSyllabus = '/student/syllabus';
 }

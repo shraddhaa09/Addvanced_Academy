@@ -15,7 +15,6 @@ import '../services/timetable_service.dart';
 import '../services/video_service.dart';
 import 'auth_provider.dart';
 
-// Services
 final subjectServiceProvider = Provider<SubjectService>((ref) {
   return SubjectService(Supabase.instance.client);
 });
@@ -44,63 +43,74 @@ final timetableServiceProvider = Provider<TimetableService>((ref) {
   return TimetableService(Supabase.instance.client);
 });
 
-// Data Providers
-final subjectsProvider = FutureProvider.autoDispose<List<SubjectModel>>((ref) async {
+final subjectsProvider =
+FutureProvider.autoDispose<List<SubjectModel>>((ref) async {
   final service = ref.watch(subjectServiceProvider);
   return service.fetchSubjects();
 });
 
-final chaptersProvider = FutureProvider.autoDispose.family<List<ChapterModel>, String>((ref, subjectId) async {
-  if (subjectId.isEmpty) return [];
-  final service = ref.watch(chapterServiceProvider);
-  return service.fetchChaptersBySubject(subjectId);
-});
+final chaptersProvider =
+FutureProvider.autoDispose.family<List<ChapterModel>, String>(
+      (ref, subjectId) async {
+    if (subjectId.isEmpty) return [];
 
-final currentFacultyIdProvider = FutureProvider.autoDispose<String?>((ref) async {
+    final service = ref.watch(chapterServiceProvider);
+    return service.fetchChaptersBySubject(subjectId);
+  },
+);
+
+final currentFacultyIdProvider = Provider.autoDispose<String?>((ref) {
   final authState = ref.watch(authProvider);
-  final authId = authState.userId;
-  if (authId == null) return null;
-  
-  try {
-    final response = await Supabase.instance.client
-        .from('users')
-        .select('id')
-        .eq('auth_id', authId)
-        .single();
-    return response['id'] as String;
-  } catch (e) {
-    return null;
+
+  if (authState.role == AppUserRole.faculty) {
+    return authState.userId;
   }
+
+  return null;
 });
 
-final recentFacultyUploadsProvider = FutureProvider.autoDispose<List<FacultyUploadModel>>((ref) async {
-  final facultyId = await ref.watch(currentFacultyIdProvider.future);
-  if (facultyId == null) return [];
-  
+final recentFacultyUploadsProvider =
+FutureProvider.autoDispose<List<FacultyUploadModel>>((ref) async {
+  final facultyId = ref.watch(currentFacultyIdProvider);
+  if (facultyId == null || facultyId.isEmpty) return [];
+
   final service = ref.watch(facultyUploadServiceProvider);
   return service.fetchRecentUploads(facultyId);
 });
 
-final facultyProfileProvider = FutureProvider.autoDispose<FacultyModel?>((ref) async {
-  final facultyId = await ref.watch(currentFacultyIdProvider.future);
-  if (facultyId == null) return null;
-  
+final facultyProfileProvider =
+FutureProvider.autoDispose<FacultyModel?>((ref) async {
+  final facultyId = ref.watch(currentFacultyIdProvider);
+  if (facultyId == null || facultyId.isEmpty) return null;
+
   final service = ref.watch(facultyServiceProvider);
   return service.fetchProfile(facultyId);
 });
 
-final facultyStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final facultyId = await ref.watch(currentFacultyIdProvider.future);
-  if (facultyId == null) return {'videos': 0, 'materials': 0, 'total_uploads': 0, 'students': 0};
-  
+final facultyStatsProvider =
+FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final facultyId = ref.watch(currentFacultyIdProvider);
+
+  if (facultyId == null || facultyId.isEmpty) {
+    return {
+      'videos': 0,
+      'materials': 0,
+      'total_uploads': 0,
+      'students': 0,
+    };
+  }
+
   final service = ref.watch(facultyServiceProvider);
   return service.fetchFacultyStats(facultyId);
 });
 
-final timetableProvider = FutureProvider.autoDispose.family<List<TimetableModel>, String>((ref, dayOfWeek) async {
-  final facultyId = await ref.watch(currentFacultyIdProvider.future);
-  if (facultyId == null) return [];
-  
-  final service = ref.watch(timetableServiceProvider);
-  return service.fetchScheduleByDay(facultyId, dayOfWeek);
-});
+final timetableProvider =
+FutureProvider.autoDispose.family<List<TimetableModel>, String>(
+      (ref, dayOfWeek) async {
+    final facultyId = ref.watch(currentFacultyIdProvider);
+    if (facultyId == null || facultyId.isEmpty) return [];
+
+    final service = ref.watch(timetableServiceProvider);
+    return service.fetchScheduleByDay(facultyId, dayOfWeek);
+  },
+);

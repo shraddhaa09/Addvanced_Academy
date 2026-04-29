@@ -1,30 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/auth_provider.dart';
+import '../constants/route_constants.dart';
 
-// AUTH
+// Public
+import '../../features/landing/screens/landing_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 
-// FACULTY
+//admin
+
+
+// Faculty
 import '../../features/faculty/screens/faculty_dashboard_screen.dart';
 import '../../features/faculty/screens/faculty_materials_screen.dart';
 import '../../features/faculty/screens/faculty_profile_screen.dart';
 import '../../features/faculty/screens/faculty_schedule_screen.dart';
 import '../../features/faculty/screens/upload_material_screen.dart';
 import '../../features/faculty/screens/upload_video_screen.dart';
+import '../../features/faculty/screens/edit_upload_screen.dart';
+import '../../features/faculty/screens/faculty_personal_details_screen.dart';
+import '../../features/faculty/screens/faculty_subjects_screen.dart';
+import '../../features/faculty/screens/faculty_upload_history_screen.dart';
+import '../../features/faculty/screens/faculty_support_screen.dart';
+import '../../features/faculty/widgets/faculty_scaffold.dart';
+
+// Student
 import '../../features/student/screens/student_dashboard_screen.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/student/screens/videos/video_subjects_screen.dart';
+import '../../features/student/screens/videos/video_list_screen.dart';
+import '../../features/student/screens/videos/video_player_screen.dart';
+import '../../models/video_lecture_model.dart';
+import '../../features/student/screens/materials/material_subjects_screen.dart';
+import '../../features/student/screens/materials/material_chapters_screen.dart';
+import '../../features/student/screens/materials/material_list_screen.dart';
+import '../../features/student/screens/timetable/student_timetable_screen.dart';
 
-// CONSTANTS
-import '../constants/route_constants.dart';
+// Tests
+import '../../features/test/screens/answer_review_screen.dart';
+import '../../features/test/screens/assigned_tests_screen.dart';
+import '../../features/test/screens/chapter_selection_screen.dart';
+import '../../features/test/screens/result_screen.dart';
+import '../../features/test/screens/test_confirmation_screen.dart';
+import '../../features/test/screens/test_engine_screen.dart';
+import '../../features/test/screens/test_selection_screen.dart';
 
+// Replace this import with the correct model used by EditUploadScreen
+// Example:
+// import '../../models/upload_model.dart';
 
-// ---------------- ROUTER REFRESH ----------------
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this.ref) {
     _subscription = ref.listen<AuthStateModel>(
       authProvider,
-      (_, __) => notifyListeners(),
+          (_, _) => notifyListeners(),
     );
   }
 
@@ -44,13 +73,11 @@ final routerRefreshNotifierProvider = Provider<RouterRefreshNotifier>((ref) {
   return notifier;
 });
 
-
-// ---------------- APP ROUTER ----------------
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(routerRefreshNotifierProvider);
 
   return GoRouter(
-    initialLocation: RouteConstants.login,
+    initialLocation: RouteConstants.landing,
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
@@ -58,6 +85,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final path = state.uri.path;
 
       final isLoginRoute = path == RouteConstants.login;
+      final isAdminArea = path.startsWith('/admin');
+      final isFacultyArea = path.startsWith('/faculty');
+      final isStudentArea = path.startsWith('/student');
 
       if (!isLoggedIn) {
         return isLoginRoute ? null : RouteConstants.login;
@@ -76,37 +106,148 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      return null;
+      switch (authState.role) {
+        case AppUserRole.admin:
+          return null;
+        case AppUserRole.faculty:
+          if (isAdminArea || isStudentArea) {
+            return RouteConstants.facultyDashboard;
+          }
+          return null;
+        case AppUserRole.student:
+          if (isAdminArea || isFacultyArea) {
+            return RouteConstants.studentDashboard;
+          }
+          return null;
+        case AppUserRole.unknown:
+          return RouteConstants.login;
+      }
     },
-    routes: <RouteBase>[
+
+    routes: [
+      GoRoute(
+        path: RouteConstants.landing,
+        builder: (context, state) => const LandingScreen(),
+      ),
       GoRoute(
         path: RouteConstants.login,
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: RouteConstants.adminDashboard,
-        builder: (context, state) => const _PlaceholderScreen(
+        builder: (context, state) => const PlaceholderScreen(
           title: 'Admin Dashboard',
         ),
       ),
-      GoRoute(
-        path: RouteConstants.facultyDashboard,
-        builder: (context, state) => const FacultyDashboardScreen(),
+
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return FacultyScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyDashboard,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyDashboardScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.uploadVideo,
+                    builder: (context, state) => const UploadVideoScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.uploadMaterial,
+                    builder: (context, state) => const UploadMaterialScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.editUpload,
+                    builder: (context, state) {
+                      // Replace `YourUploadModel` with your real model class
+                      final upload = state.extra as dynamic;
+                      return EditUploadScreen(upload: upload);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultySchedule,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyScheduleScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyMaterials,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyMaterialsScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.facultyProfile,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FacultyProfileScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.personalDetails,
+                    builder: (context, state) =>
+                    const FacultyPersonalDetailsScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.mySubjects,
+                    builder: (context, state) => const FacultySubjectsScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.uploadHistory,
+                    builder: (context, state) =>
+                    const FacultyUploadHistoryScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.helpSupport,
+                    builder: (context, state) => const FacultySupportScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
-      GoRoute(
-        path: RouteConstants.uploadVideo,
-        builder: (context, state) => const UploadVideoScreen(),
-      ),
-      GoRoute(
-        path: RouteConstants.uploadMaterial,
-        builder: (context, state) => const UploadMaterialScreen(),
-      ),
+
       GoRoute(
         path: RouteConstants.studentDashboard,
         builder: (context, state) => const StudentDashboardScreen(),
       ),
-
-      // ================= TEST FLOW (FIXED) =================
+      GoRoute(
+        path: RouteConstants.videoSubjects,
+        builder: (context, state) => const VideoSubjectsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.videoList,
+        builder: (context, state) {
+          final subject = state.pathParameters['subject'] ?? '';
+          return VideoListScreen(subject: subject);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.videoPlayer,
+        builder: (context, state) {
+          final video = state.extra as VideoLectureModel;
+          return VideoPlayerScreen(video: video);
+        },
+      ),
       GoRoute(
         path: RouteConstants.assignedTests,
         builder: (context, state) => const AssignedTestsScreen(),
@@ -135,15 +276,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteConstants.answerReview,
         builder: (context, state) => const AnswerReviewScreen(),
       ),
+      GoRoute(
+        path: RouteConstants.materialSubjects,
+        builder: (context, state) => const MaterialSubjectsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.materialChapters,
+        builder: (context, state) {
+          final subject = state.pathParameters['subject'] ?? '';
+          return MaterialChaptersScreen(subject: subject);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.materialList,
+        builder: (context, state) {
+          final subject = state.pathParameters['subject'] ?? '';
+          final chapter = state.pathParameters['chapter'] ?? '';
+          return MaterialListScreen(
+            subjectId: subject,
+            chapterId: chapter,
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.studentTimetable,
+        builder: (context, state) => const StudentTimetableScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.studentSyllabus,
+        builder: (context, state) =>
+        const PlaceholderScreen(title: 'Syllabus'),
+      ),
     ],
   );
 });
 
-class _PlaceholderScreen extends ConsumerWidget {
+class PlaceholderScreen extends ConsumerWidget {
   final String title;
 
-  const _PlaceholderScreen({
+  const PlaceholderScreen({
     required this.title,
+    super.key,
   });
 
   @override

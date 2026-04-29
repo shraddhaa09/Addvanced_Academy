@@ -1,24 +1,60 @@
-import 'dart:io';
-
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'dart:io' as io;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/errors/app_exceptions.dart';
+import '../models/video_lecture_model.dart';
 
 class VideoService {
+  VideoService([SupabaseClient? client])
+      : _client = client ?? Supabase.instance.client;
+
   final SupabaseClient _client;
-  VideoService(this._client);
 
   Future<String> uploadVideoFile({
-    required File file,
+    required String fileName,
+    required Object file,
     required String facultyId,
     required String subjectId,
     required String chapterId,
   }) async {
-    final fileName = file.path.split('/').last;
-    final path = 'videos/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
-    await _client.storage.from('video-lectures').upload(path, file);
-    return path;
+    final safeFileName = fileName.replaceAll(RegExp(r'[^\w\.\-]'), '_');
+
+    final path =
+        'videos/$facultyId/$subjectId/$chapterId/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
+
+    try {
+      if (file is Uint8List) {
+        // Web
+        await _client.storage
+            .from('video-lectures')
+            .uploadBinary(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else if (file is io.File) {
+        // Mobile/Desktop
+        await _client.storage
+            .from('video-lectures')
+            .upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+      } else {
+        throw Exception('Unsupported file type: ${file.runtimeType}');
+      }
+
+      return path;
+    } on StorageException catch (e) {
+      throw Exception('Storage upload failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Unexpected upload error: $e');
+    }
   }
 
-  Future<Map<String, dynamic>> createVideoLecture({
+  Future<VideoLectureModel> createVideoLecture({
     required String facultyId,
     required String subjectId,
     required String chapterId,
@@ -29,11 +65,29 @@ class VideoService {
     int? fileSizeKb,
     int? durationSec,
   }) async {
+    // 1. Deduplication Check
+    try {
+      final existing = await _client
+          .from('video_lectures')
+          .select('id')
+          .eq('faculty_id', facultyId)
+          .eq('subject_id', subjectId)
+          .ilike('title', title.trim())
+          .maybeSingle();
+
+      if (existing != null) {
+        throw DuplicateUploadException('A video with this title already exists in this subject.');
+      }
+    } on PostgrestException catch (e) {
+      debugPrint('Deduplication check failed: $e');
+    }
+
+    // 2. Insert
     final payload = {
       'faculty_id': facultyId,
       'subject_id': subjectId,
       'chapter_id': chapterId,
-      'title': title,
+      'title': title.trim(),
       'storage_path': storagePath,
       'description': description,
       'is_visible': isVisible,
@@ -41,9 +95,54 @@ class VideoService {
       'duration_sec': durationSec,
     };
 
-    final response = await _client.from('video_lectures').insert(payload).select().single();
-    return Map<String, dynamic>.from(response as Map);
+    try {
+      final response = await _client
+          .from('video_lectures')
+          .insert(payload)
+          .select()
+          .single();
+
+      return VideoLectureModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw DuplicateUploadException('A video with this title already exists in this subject.');
+      }
+      throw Exception('Database Error: ${e.message} (Code: ${e.code})');
+    } catch (e) {
+      if (e is DuplicateUploadException) rethrow;
+      throw Exception('Unexpected Database Error: $e');
+    }
   }
 
+  Future<List<VideoLectureModel>> fetchVideosBySubject(String subjectId) async {
+    final response = await _client
+        .from('video_lectures')
+        .select()
+        .eq('subject_id', subjectId)
+        .eq('is_visible', true)
+        .order('uploaded_at', ascending: false);
 
+    return (response as List).map((e) => VideoLectureModel.fromJson(e)).toList();
+  }
+
+  String getPublicUrl(String storagePath) {
+    return Supabase.instance.client.storage
+        .from('videos')
+        .getPublicUrl(storagePath);
+  }
+
+  Future<void> recordView({
+    required String videoId,
+    required String studentId,
+  }) async {
+    try {
+      await _client.from('content_views').insert({
+        'content_id': videoId,
+        'content_type': 'video',
+        'student_id': studentId,
+      });
+    } catch (e) {
+      debugPrint('Error recording video view: $e');
+    }
+  }
 }
