@@ -28,9 +28,22 @@ import '../../features/faculty/widgets/faculty_scaffold.dart';
 
 // STUDENT
 import '../../features/student/screens/student_dashboard_screen.dart';
+import '../../features/student/screens/materials/material_subjects_screen.dart';
+import '../../features/student/screens/materials/material_chapters_screen.dart';
+import '../../features/student/screens/materials/material_list_screen.dart';
+import '../../features/student/screens/videos/video_subjects_screen.dart';
+import '../../features/student/screens/videos/video_list_screen.dart';
+import '../../features/student/screens/videos/video_player_screen.dart';
+import '../../features/student/screens/timetable/student_timetable_screen.dart';
+import '../../features/student/screens/student_profile_screen.dart';
+import '../../features/student/screens/student_support_screen.dart';
+import '../../features/student/screens/student_announcement_screen.dart';
+import '../../features/student/screens/student_personal_details_screen.dart';
+import '../../features/student/widgets/student_scaffold.dart';
 
 // MODELS
 import '../../models/faculty_upload_model.dart';
+import '../../models/video_lecture_model.dart';
 
 // PROVIDERS
 import '../../providers/auth_provider.dart';
@@ -245,10 +258,150 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ===== STUDENT =====
-      GoRoute(
-        path: RouteConstants.studentDashboard,
-        builder: (context, state) => const StudentDashboardScreen(),
+      // =========================================================
+      // STUDENT SHELL
+      // =========================================================
+      // =========================================================
+      // STUDENT SHELL
+      // =========================================================
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return StudentScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          // DASHBOARD
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.studentDashboard,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: StudentDashboardScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'announcements',
+                    builder: (context, state) => const StudentAnnouncementScreen(),
+                  ),
+                  GoRoute(
+                    path: 'tests',
+                    builder: (context, state) => const AssignedTestsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'selection/:subject',
+                        builder: (context, state) => TestSelectionScreen(
+                          subject: state.pathParameters['subject'] ?? '',
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'chapters/:subject',
+                        builder: (context, state) => ChapterSelectionScreen(
+                          subject: state.pathParameters['subject'] ?? '',
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'confirmation',
+                        builder: (context, state) => const TestConfirmationScreen(),
+                      ),
+                      GoRoute(
+                        path: 'engine',
+                        builder: (context, state) => const TestEngineScreen(),
+                      ),
+                      GoRoute(
+                        path: 'result',
+                        builder: (context, state) => const ResultScreen(),
+                      ),
+                      GoRoute(
+                        path: 'review',
+                        builder: (context, state) => const AnswerReviewScreen(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // SCHEDULE
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.studentSchedule,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: StudentTimetableScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // MATERIALS / VIDEOS
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.studentMaterials,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: MaterialSubjectsScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'chapters/:subject',
+                    builder: (context, state) => MaterialChaptersScreen(
+                      subject: state.pathParameters['subject'] ?? '',
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'list/:subject/:chapter',
+                    builder: (context, state) => MaterialListScreen(
+                      subjectId: state.pathParameters['subject'] ?? '',
+                      chapterId: state.pathParameters['chapter'] ?? '',
+                    ),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: RouteConstants.studentVideos,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: VideoSubjectsScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'list/:subject',
+                    builder: (context, state) => VideoListScreen(
+                      subject: state.pathParameters['subject'] ?? '',
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'player',
+                    builder: (context, state) => VideoPlayerScreen(
+                      video: state.extra as VideoLectureModel,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // PROFILE
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteConstants.studentProfile,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: StudentProfileScreen(),
+                ),
+                routes: [
+                  GoRoute(
+                    path: RouteConstants.personalDetails,
+                    builder: (context, state) => const StudentPersonalDetailsScreen(),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.studentSupport,
+                    builder: (context, state) => const StudentSupportScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );

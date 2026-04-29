@@ -132,12 +132,4 @@ class FacultyService {
       };
     }
   }
-
-  Future<Map<String, int>> fetchContentViewCounts(String facultyId) async {
-    try {
-      return {'videos': 0, 'materials': 0};
-    } catch (e) {
-      return {'videos': 0, 'materials': 0};
-    }
-  }
 }
