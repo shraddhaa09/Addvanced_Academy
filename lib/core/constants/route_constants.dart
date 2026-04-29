@@ -10,6 +10,9 @@ class RouteConstants {
   static const String facultyMaterials = '/faculty/materials';
   static const String facultyProfile = '/faculty/profile';
 
+  // Admin Routes
+  static const String adminDashboard = '/admin';
+
   // Faculty Sub-routes (relative)
   static const String uploadVideo = 'upload-video';
   static const String uploadMaterial = 'upload-material';

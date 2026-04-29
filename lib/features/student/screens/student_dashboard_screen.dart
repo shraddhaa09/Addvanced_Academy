@@ -442,5 +442,3 @@ class _RecentUploadCard extends StatelessWidget {
     );
   }
 }
-  }
-}

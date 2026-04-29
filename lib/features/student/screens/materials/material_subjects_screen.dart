@@ -50,7 +50,7 @@ class MaterialSubjectsScreen extends ConsumerWidget {
 
               return ActionCard(
                 title: subject.name,
-                subtitle: subject.description ?? 'Study notes and resources',
+                subtitle: subject.label,
                 icon: Icons.menu_book_rounded,
                 accentColor: const Color(0xFF2BB5A0),
                 iconBackground: const Color(0xFFE6F4F1),

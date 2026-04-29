@@ -288,15 +288,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'selection/:subject',
-                        builder: (context, state) => TestSelectionScreen(
-                          subject: state.pathParameters['subject'] ?? '',
-                        ),
+                        builder: (context, state) => const TestSelectionScreen(),
                       ),
                       GoRoute(
                         path: 'chapters/:subject',
-                        builder: (context, state) => ChapterSelectionScreen(
-                          subject: state.pathParameters['subject'] ?? '',
-                        ),
+                        builder: (context, state) => const ChapterSelectionScreen(),
                       ),
                       GoRoute(
                         path: 'confirmation',

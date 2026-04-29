@@ -11,6 +11,7 @@ class MaterialService {
 
   final SupabaseClient _client;
 
+  static const String _bucketName = 'study-materials';
   static const String _tableName = 'study_materials';
 
   Future<String> uploadMaterialFile({
@@ -61,7 +62,6 @@ class MaterialService {
     // Deduplication check
     try {
       final existing = await _client
-          .schema('academy')
           .from(_tableName)
           .select('id')
           .eq('faculty_id', facultyId)
@@ -75,7 +75,7 @@ class MaterialService {
       }
     } catch (_) {}
 
-    final payload = {
+    final response = await _client.from(_tableName).insert({
       'faculty_id': facultyId,
       'subject_id': subjectId,
       'chapter_id': chapterId,
@@ -84,18 +84,17 @@ class MaterialService {
       'storage_path': storagePath,
       'material_type': materialType,
       'file_size_kb': fileSizeKb,
-      'is_visible': isVisible,
-    };
+    });
 
     try {
       final response = await _client
           .schema('academy')
-          .from(_tableName)
-          .insert(payload)
+          .from('study_materials')
+          .insert('payload')
           .select()
           .single();
 
-      return StudyMaterialModel.fromJson(Map<String, dynamic>.from(response));
+      return StudyMaterialModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw Exception('Database Error: ${e.message} (Code: ${e.code})');
     } catch (e) {
@@ -104,25 +103,28 @@ class MaterialService {
   }
 
   Future<List<StudyMaterialModel>> fetchMaterialsByChapter(String chapterId) async {
-    try {
-      final response = await _client
-          .schema('academy')
-          .from(_tableName)
-          .select()
-          .eq('chapter_id', chapterId)
-          .eq('is_visible', true)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((json) => StudyMaterialModel.fromJson(json))
-          .toList();
-    } catch (e) {
-      throw Exception('Failed to fetch materials: $e');
-    }
+    final response = await _client
+        .schema('academy')
+        .from('study_materials')
+        .select()
+        .eq('chapter_id', chapterId);
+    return (response as List).map((json) => StudyMaterialModel.fromJson(json)).toList();
   }
 
-  Future<String> getPublicUrl(String storagePath) async {
-    return _client.storage.from('study-materials').getPublicUrl(storagePath);
+  Future<List<StudyMaterialModel>> fetchMaterialsBySubjectAndChapter({
+    required String subjectId,
+    required String chapterId,
+  }) async {
+    final response = await _client
+        .from('study_materials')
+        .select()
+        .eq('subject_id', subjectId)
+        .eq('chapter_id', chapterId);
+    return (response as List).map((json) => StudyMaterialModel.fromJson(json)).toList();
+  }
+
+  String getPublicUrl(String storagePath) {
+    return _client.storage.from('materials').getPublicUrl(storagePath);
   }
 
   Future<void> recordView({
@@ -136,6 +138,7 @@ class MaterialService {
         'student_id': studentId,
       });
     } catch (e) {
+      // Silently fail as view recording shouldn't block the user
       debugPrint('Error recording material view: $e');
     }
   }

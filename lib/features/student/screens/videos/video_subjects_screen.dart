@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../providers/faculty_providers.dart';
 import '../../../../core/widgets/action_card.dart';
+import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/shimmer_widgets.dart';
 
 class VideoSubjectsScreen extends ConsumerWidget {

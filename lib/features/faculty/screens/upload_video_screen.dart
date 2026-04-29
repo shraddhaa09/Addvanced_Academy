@@ -91,35 +91,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
     }
   }
 
-  Future<void> _loadChapters(SubjectModel? subject) async {
-    setState(() {
-      _selectedSubject = subject;
-      _selectedChapter = null;
-      _chapters = [];
-      _chapterError = null;
-      _isLoadingChapters = subject != null;
-    });
 
-    if (subject == null) return;
-
-    try {
-      final service = ref.read(chapterServiceProvider);
-      final chapters = await service.fetchChaptersBySubject(subject.id);
-
-      if (!mounted) return;
-      setState(() {
-        _chapters = chapters;
-        _isLoadingChapters = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _chapters = [];
-        _isLoadingChapters = false;
-        _chapterError = 'Error: ${e.toString().replaceAll('Exception:', '').trim()}';
-      });
-    }
-  }
 
   void _clearFile() {
     setState(() {
@@ -192,28 +164,27 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
     }
   }
 
-  void _clearFile() {
-    setState(() {
-      _fileData = null;
-      _fileName = null;
-      _fileSizeLabel = null;
-      _fileSizeBytes = null;
-      _fileError = null;
-    });
-  }
+
 
   Future<void> _upload() async {
     if (!_formKey.currentState!.validate()) return;
+    // Ensure we have all required selections
     if (_selectedSubject == null || _selectedChapter == null || _fileData == null) return;
 
     setState(() => _isUploading = true);
 
     try {
+      // 1. Get the ID from the provider (await if it's a FutureProvider)
       final facultyId = await ref.read(currentFacultyIdProvider.future);
       if (facultyId == null) throw Exception('Could not determine faculty ID');
 
       final videoService = ref.read(videoServiceProvider);
 
+      // 2. Use the IDs from your selected models
+      final String subjectId = _selectedSubject!.id;
+      final String chapterId = _selectedChapter!.id;
+
+      // 3. Upload the actual file to storage
       final storagePath = await videoService.uploadVideoFile(
         fileName: _fileName!,
         file: _fileData!,
@@ -222,6 +193,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         chapterId: chapterId,
       );
 
+      // 4. Create the database record
       await videoService.createVideoLecture(
         facultyId: facultyId,
         subjectId: subjectId,
@@ -233,6 +205,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         isVisible: _isVisible,
       );
 
+      // Refresh the dashboard list
       ref.invalidate(recentFacultyUploadsProvider);
 
       if (!mounted) return;
@@ -244,6 +217,8 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       _showErrorSheet(e.toString());
     }
   }
+
+
 
   void _showSuccessSheet() {
     showModalBottomSheet(
