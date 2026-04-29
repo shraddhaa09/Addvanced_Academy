@@ -18,19 +18,41 @@ class _FacultyScheduleScreenState extends ConsumerState<FacultyScheduleScreen> {
 
   DateTime _selectedDate = _stripTime(DateTime.now());
 
-  static DateTime _stripTime(DateTime d) => DateTime(d.year, d.month, d.day);
+  static DateTime _stripTime(DateTime d) =>
+      DateTime(d.year, d.month, d.day);
+
+  // ✅ FIX: Map Date → DB enum format
+  String _mapDay(DateTime date) {
+    switch (date.weekday) {
+      case 1:
+        return 'mon';
+      case 2:
+        return 'tue';
+      case 3:
+        return 'wed';
+      case 4:
+        return 'thu';
+      case 5:
+        return 'fri';
+      case 6:
+        return 'sat';
+      case 7:
+        return 'sun';
+      default:
+        return 'mon';
+    }
+  }
 
   List<DateTime> _weekDays(DateTime anchor) {
     final monday = anchor.subtract(Duration(days: anchor.weekday - 1));
     return List.generate(7, (i) => monday.add(Duration(days: i)));
   }
 
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
   @override
   Widget build(BuildContext context) {
-    final dayName = DateFormat('EEEE').format(_selectedDate);
+    // ✅ FIXED HERE
+    final dayName = _mapDay(_selectedDate);
+
     final timetableAsync = ref.watch(timetableProvider(dayName));
     final week = _weekDays(_selectedDate);
 
@@ -69,17 +91,21 @@ class _FacultyScheduleScreenState extends ConsumerState<FacultyScheduleScreen> {
                   ? SliverFillRemaining(
                 hasScrollBody: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  padding:
+                  const EdgeInsets.fromLTRB(20, 12, 20, 32),
                   child: _EmptyState(),
                 ),
               )
                   : SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                padding:
+                const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                         (_, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _SessionCard(session: sessions[i]),
+                      padding:
+                      const EdgeInsets.only(bottom: 12),
+                      child:
+                      _SessionCard(session: sessions[i]),
                     ),
                     childCount: sessions.length,
                   ),
@@ -100,7 +126,8 @@ class _FacultyScheduleScreenState extends ConsumerState<FacultyScheduleScreen> {
               error: (_, __) => SliverFillRemaining(
                 hasScrollBody: false,
                 child: _ErrorState(
-                  onRetry: () => ref.invalidate(timetableProvider(dayName)),
+                  onRetry: () =>
+                      ref.invalidate(timetableProvider(dayName)),
                 ),
               ),
             ),

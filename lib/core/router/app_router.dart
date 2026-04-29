@@ -24,6 +24,8 @@ import '../../features/faculty/screens/faculty_subjects_screen.dart';
 import '../../features/faculty/screens/faculty_upload_history_screen.dart';
 import '../../features/faculty/screens/faculty_support_screen.dart';
 import '../../features/faculty/screens/faculty_announcement_screen.dart';
+import '../../features/faculty/screens/faculty_video_player_screen.dart';
+import '../../features/faculty/screens/faculty_material_viewer_screen.dart';
 import '../../features/faculty/widgets/faculty_scaffold.dart';
 
 // STUDENT
@@ -94,50 +96,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
     // ---------------- REDIRECT ----------------
     redirect: (context, state) {
-      final authState = ref.read(authProvider);
-      final isLoggedIn = authState.isAuthenticated;
-      final path = state.uri.path;
+  final authState = ref.read(authProvider);
+  final isLoggedIn = authState.isAuthenticated;
 
-      final isLoginRoute = path == RouteConstants.login;
-      final isAdminArea = path.startsWith('/admin');
-      final isFacultyArea = path.startsWith('/faculty');
-      final isStudentArea = path.startsWith('/student');
+  final path = state.uri.path;
+  final isLoginRoute = path == RouteConstants.login;
 
-      if (!isLoggedIn) {
-        return isLoginRoute ? null : RouteConstants.login;
-      }
+  final isFacultyRoute = path.startsWith('/faculty');
+  final isStudentRoute = path.startsWith('/student');
+  final isAdminRoute = path.startsWith('/admin');
 
-      if (isLoginRoute) {
-        switch (authState.role) {
-          case AppUserRole.admin:
-            return RouteConstants.adminDashboard;
-          case AppUserRole.faculty:
-            return RouteConstants.facultyDashboard;
-          case AppUserRole.student:
-            return RouteConstants.studentDashboard;
-          case AppUserRole.unknown:
-            return RouteConstants.login;
-        }
-      }
+  // 🚨 NOT LOGGED IN → BLOCK ALL PROTECTED ROUTES
+  if (!isLoggedIn) {
+    if (isFacultyRoute || isStudentRoute || isAdminRoute) {
+      return RouteConstants.login;
+    }
+    return isLoginRoute ? null : RouteConstants.login;
+  }
 
-      switch (authState.role) {
-        case AppUserRole.admin:
-          return null;
-        case AppUserRole.faculty:
-          if (isAdminArea || isStudentArea) {
-            return RouteConstants.facultyDashboard;
-          }
-          return null;
-        case AppUserRole.student:
-          if (isAdminArea || isFacultyArea) {
-            return RouteConstants.studentDashboard;
-          }
-          return null;
-        case AppUserRole.unknown:
-          return RouteConstants.login;
-      }
+  // 🚨 LOGGED IN → PREVENT GOING BACK TO LOGIN
+  if (isLoginRoute) {
+    switch (authState.role) {
+      case AppUserRole.admin:
+        return RouteConstants.adminDashboard;
+      case AppUserRole.faculty:
+        return RouteConstants.facultyDashboard;
+      case AppUserRole.student:
+        return RouteConstants.studentDashboard;
+      case AppUserRole.unknown:
+        return RouteConstants.login;
+    }
+  }
+
+  return null;
     },
-
     routes: [
 
       // ===== LOGIN =====
@@ -154,7 +146,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // =========================================================
-      // FACULTY SHELL (CORRECT VERSION)
+      // FACULTY SHELL
       // =========================================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -172,22 +164,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ),
                 routes: [
                   GoRoute(
-                    path: 'upload-video',
+                    path: RouteConstants.uploadVideo,
                     builder: (context, state) => const UploadVideoScreen(),
                   ),
                   GoRoute(
-                    path: 'upload-material',
+                    path: RouteConstants.uploadMaterial,
                     builder: (context, state) => const UploadMaterialScreen(),
                   ),
                   GoRoute(
-                    path: 'edit-upload',
+                    path: RouteConstants.editUpload,
                     builder: (context, state) => EditUploadScreen(
                       upload: state.extra as FacultyUploadModel,
                     ),
                   ),
                   GoRoute(
-                    path: 'announcements',
+                    path: RouteConstants.facultyAnnouncements,
                     builder: (context, state) => const FacultyAnnouncementScreen(),
+                  ),
+                  // Added Viewers
+                  GoRoute(
+                    path: RouteConstants.videoViewer,
+                    builder: (context, state) => FacultyVideoPlayerScreen(
+                      upload: state.extra as FacultyUploadModel,
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteConstants.materialViewer,
+                    builder: (context, state) => FacultyMaterialViewerScreen(
+                      upload: state.extra as FacultyUploadModel,
+                    ),
                   ),
                 ],
               ),
@@ -412,15 +417,25 @@ class _PlaceholderScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
           IconButton(
-            onPressed: () async {
-              await ref.read(authProvider.notifier).signOut();
-            },
-            icon: const Icon(Icons.logout),
+            onPressed: authState.isLoading
+                ? null
+                : () async {
+                    await ref.read(authProvider.notifier).signOut();
+                  },
+            icon: authState.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.logout),
           ),
         ],
       ),

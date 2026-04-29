@@ -11,13 +11,6 @@ import '../../../models/faculty_upload_model.dart';
 class FacultyDashboardScreen extends ConsumerWidget {
   const FacultyDashboardScreen({super.key});
 
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -27,7 +20,7 @@ class FacultyDashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           children: [
-            _GreetingSection(greeting: _greeting()),
+            const _GreetingSection(),
             const SizedBox(height: 20),
             const _HeroBanner(),
             const SizedBox(height: 28),
@@ -125,18 +118,34 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _GreetingSection extends StatelessWidget {
-  final String greeting;
+class _GreetingSection extends ConsumerWidget {
+  const _GreetingSection();
 
-  const _GreetingSection({required this.greeting});
+  String _getGreetingText(String? name) {
+    final hour = DateTime.now().hour;
+    final prefix = hour < 12 
+        ? 'Good morning' 
+        : (hour < 17 ? 'Good afternoon' : 'Good evening');
+    
+    // Fallback to Professor if name is null or empty
+    final displayName = (name != null && name.trim().isNotEmpty) ? name : 'Professor';
+    return '$prefix, $displayName';
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(facultyProfileProvider);
+
+    final greetingText = profileAsync.maybeWhen(
+      data: (profile) => _getGreetingText(profile?.name),
+      orElse: () => _getGreetingText(null),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$greeting, Professor',
+          greetingText,
           style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -393,53 +402,69 @@ class _RecentUploadCard extends StatelessWidget {
   const _RecentUploadCard({required this.upload});
   final FacultyUploadModel upload;
 
+  void _onTap(BuildContext context) {
+    final isVideo = upload.contentType.toLowerCase() == 'video';
+    final route = isVideo ? RouteConstants.videoViewer : RouteConstants.materialViewer;
+    context.push('${RouteConstants.facultyDashboard}/$route', extra: upload);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isVideo = upload.contentType == 'video';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final accentColor = isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _onTap(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isVideo ? const Color(0xFF5B4FCF).withOpacity(0.08) : const Color(0xFF1E8C6E).withOpacity(0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isVideo ? Icons.play_circle_outline : Icons.picture_as_pdf,
-              color: isVideo ? const Color(0xFF5B4FCF) : const Color(0xFF1E8C6E),
-              size: 20,
-            ),
+        splashColor: accentColor.withOpacity(0.05),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade100),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  upload.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                Text(
-                  upload.subject,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                child: Icon(
+                  isVideo ? Icons.play_circle_outline : Icons.picture_as_pdf,
+                  color: accentColor,
+                  size: 20,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      upload.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      upload.subject,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                upload.uploadedAt != null ? timeago.format(upload.uploadedAt!) : 'Unknown',
+                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              ),
+            ],
           ),
-          Text(
-            upload.uploadedAt != null ? timeago.format(upload.uploadedAt!) : 'Unknown',
-            style: TextStyle(color: Colors.grey[500], fontSize: 11),
-          ),
-        ],
+        ),
       ),
     );
   }

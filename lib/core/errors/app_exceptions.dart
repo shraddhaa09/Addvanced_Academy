@@ -9,9 +9,13 @@ class AppException implements Exception {
 }
 
 class DuplicateUploadException extends AppException {
-  DuplicateUploadException(super.message, [super.code]);
+  DuplicateUploadException(String message) : super(message, 'DUPLICATE_RECORD');
+}
+
+class NetworkException extends AppException {
+  NetworkException(String message) : super(message, 'NETWORK_ERROR');
 }
 
 class AuthException extends AppException {
-  AuthException(super.message, [super.code]);
+  AuthException(String message) : super(message, 'AUTH_ERROR');
 }

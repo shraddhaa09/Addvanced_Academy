@@ -22,14 +22,21 @@ class TimetableModel {
   });
 
   factory TimetableModel.fromJson(Map<String, dynamic> json) {
+    // The query joins subjects!subject_id(name) → arrives as json['subjects']['name']
+    final subjectsObj = json['subjects'];
+    final joinedName = subjectsObj is Map ? subjectsObj['name'] as String? : null;
+
     return TimetableModel(
       id: json['id'] as String,
       facultyId: json['faculty_id'] as String? ?? '',
       subjectId: json['subject_id'] as String? ?? '',
-      subjectName: json['subject_name'] as String? ?? '',
+      subjectName: joinedName ??          // ✅ from join
+          json['subject_name'] as String? ?? // legacy column if it ever exists
+          json['subject_id'] as String? ??   // last-resort fallback (shows UUID)
+          'Subject',
       startTime: json['start_time'] as String? ?? '',
       endTime: json['end_time'] as String? ?? '',
-      dayOfWeek: json['day_of_week'] as String? ?? '',
+      dayOfWeek: json['day'] as String? ?? '',
       room: json['room'] as String?,
       type: json['type'] as String? ?? 'Lecture',
     );
@@ -43,10 +50,9 @@ class TimetableModel {
       'subject_name': subjectName,
       'start_time': startTime,
       'end_time': endTime,
-      'day_of_week': dayOfWeek,
+      'day': dayOfWeek,
       'room': room,
       'type': type,
     };
   }
-
 }
