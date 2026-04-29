@@ -6,6 +6,7 @@ class RecentUploadTile extends StatelessWidget {
   final FacultyUploadModel upload;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onTap; // ✅ Added
   final int? viewCount;
 
   const RecentUploadTile({
@@ -13,6 +14,7 @@ class RecentUploadTile extends StatelessWidget {
     required this.upload,
     this.onEdit,
     this.onDelete,
+    this.onTap, // ✅ Added
     this.viewCount,
   });
 
@@ -56,6 +58,8 @@ class RecentUploadTile extends StatelessWidget {
         ],
       ),
       child: ListTile(
+        onTap: onTap, // ✅ Added
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
 

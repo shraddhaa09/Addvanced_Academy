@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../models/chapter_model.dart';
 import '../../../models/subject_model.dart';
 import '../../../providers/faculty_providers.dart';
+import '../../../core/errors/app_exceptions.dart'; // ✅ Added
 
 class UploadMaterialScreen extends ConsumerStatefulWidget {
   const UploadMaterialScreen({super.key});
@@ -110,9 +111,22 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material uploaded successfully!')),
+          const SnackBar(
+            content: Text('Material uploaded successfully!'),
+            backgroundColor: Color(0xFF1E8C6E),
+          ),
         );
         context.pop();
+      }
+    } on DuplicateUploadException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.amber.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -216,7 +230,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      initialValue: _materialType,
+                      value: _materialType,
                       decoration: _inputDecoration('Material Type'),
                       items: const [
                         DropdownMenuItem(value: 'pdf', child: Text('PDF Document')),
@@ -230,7 +244,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
 
                     subjectsAsync.when(
                       data: (subjects) => DropdownButtonFormField<SubjectModel>(
-                        initialValue: _selectedSubject,
+                        value: _selectedSubject,
                         decoration: _inputDecoration('Select Subject'),
                         items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
                         onChanged: (val) {
@@ -248,7 +262,7 @@ class _UploadMaterialScreenState extends ConsumerState<UploadMaterialScreen> {
 
                     chaptersAsync.when(
                       data: (chapters) => DropdownButtonFormField<ChapterModel>(
-                        initialValue: _selectedChapter,
+                        value: _selectedChapter,
                         decoration: _inputDecoration('Select Chapter'),
                         items: chapters.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
                         onChanged: (val) => setState(() => _selectedChapter = val),

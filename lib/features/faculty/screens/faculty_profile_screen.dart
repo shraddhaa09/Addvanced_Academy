@@ -34,7 +34,7 @@ class FacultyProfileScreen extends ConsumerWidget {
   Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         icon: const Icon(Icons.logout, color: Colors.red, size: 32),
         title: const Text(
@@ -51,7 +51,7 @@ class FacultyProfileScreen extends ConsumerWidget {
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           OutlinedButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(120, 44),
               shape: RoundedRectangleBorder(
@@ -62,7 +62,7 @@ class FacultyProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,
               minimumSize: const Size(120, 44),
@@ -80,12 +80,27 @@ class FacultyProfileScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     try {
-      await ref.read(authProvider.notifier).signOut();
-    } catch (_) {
+      final success = await ref.read(authProvider.notifier).signOut();
+      
+      if (!context.mounted) return;
+
+      if (success) {
+        // Force navigation to login screen immediately
+        context.go(RouteConstants.login);
+      } else {
+        final errorMessage = ref.read(authProvider).errorMessage;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage ?? 'Could not log out. Please try again.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not log out. Please try again.'),
+            content: const Text('An unexpected error occurred during logout.'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -106,6 +121,7 @@ class FacultyProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(facultyProfileProvider);
     final statsAsync = ref.watch(facultyStatsProvider);
+    final authState = ref.watch(authProvider); // ✅ Watch authState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -140,137 +156,141 @@ class FacultyProfileScreen extends ConsumerWidget {
               profileAsync.when(
                 data: (profile) {
                   final color = _subjectColor(profile?.subject as String?);
+                  final lightColor = Color.lerp(color, Colors.white, 0.35) ?? color;
                   return Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade100),
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(6),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: color.withAlpha(40),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _openEditProfile(context, profile),
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 50,
-                                backgroundColor: color.withAlpha(30),
-                                child: Text(
-                                  _initials(profile?.name),
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          profile?.name ?? 'Professor',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          profile?.mobile ?? '',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withAlpha(22),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            profile?.subject ?? 'Faculty',
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (profile?.qualification != null) ...[
-                          const SizedBox(height: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Column(
+                        children: [
+                          // ── Gradient banner ──────────────────────────────
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 5,
-                            ),
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E8C6E).withAlpha(22),
-                              borderRadius: BorderRadius.circular(20),
+                              gradient: LinearGradient(
+                                colors: [color, lightColor],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                             ),
-                            child: Text(
-                              profile!.qualification!,
-                              style: const TextStyle(
-                                color: Color(0xFF1E8C6E),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _openEditProfile(context, profile),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Container(
+                                        width: 96,
+                                        height: 96,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withAlpha(30),
+                                          border: Border.all(color: Colors.white.withAlpha(80), width: 2.5),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            _initials(profile?.name),
+                                            style: const TextStyle(
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: color.withAlpha(60),
+                                                blurRadius: 6,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(Icons.edit_rounded, color: color, size: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  profile?.name ?? 'Professor',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                if ((profile?.mobile ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    profile!.mobile,
+                                    style: const TextStyle(fontSize: 13, color: Colors.white70),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    _Badge(
+                                      label: profile?.subject ?? 'Faculty',
+                                      color: Colors.white.withAlpha(40),
+                                      textColor: Colors.white,
+                                    ),
+                                    if (profile?.qualification != null)
+                                      _Badge(
+                                        label: profile!.qualification!,
+                                        color: Colors.white.withAlpha(25),
+                                        textColor: Colors.white70,
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // ── White bottom strip with edit button ──────────
+                          Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _openEditProfile(context, profile),
+                                icon: const Icon(Icons.edit_outlined, size: 15),
+                                label: const Text('Edit Profile'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: color,
+                                  side: BorderSide(color: color.withAlpha(80)),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ],
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () => _openEditProfile(context, profile),
-                            icon: const Icon(Icons.edit_outlined, size: 16),
-                            label: const Text('Edit Profile'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: color,
-                              side: BorderSide(color: color.withAlpha(80)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -285,6 +305,7 @@ class FacultyProfileScreen extends ConsumerWidget {
                       child: _StatBadge(
                         label: 'Videos',
                         value: stats['videos'].toString(),
+                        icon: Icons.play_circle_outline,
                         color: const Color(0xFF5B4FCF),
                       ),
                     ),
@@ -293,6 +314,7 @@ class FacultyProfileScreen extends ConsumerWidget {
                       child: _StatBadge(
                         label: 'Materials',
                         value: stats['materials'].toString(),
+                        icon: Icons.description_outlined,
                         color: const Color(0xFF1E8C6E),
                       ),
                     ),
@@ -301,6 +323,7 @@ class FacultyProfileScreen extends ConsumerWidget {
                       child: _StatBadge(
                         label: 'Total',
                         value: stats['total_uploads'].toString(),
+                        icon: Icons.cloud_done_outlined,
                         color: const Color(0xFFE65100),
                       ),
                     ),
@@ -309,12 +332,12 @@ class FacultyProfileScreen extends ConsumerWidget {
                 loading: () => Row(
                   children: List.generate(
                     3,
-                        (i) => Expanded(
+                    (i) => Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(right: i < 2 ? 12 : 0),
                         child: const _ShimmerBox(
                           width: double.infinity,
-                          height: 72,
+                          height: 80,
                           borderRadius: 14,
                         ),
                       ),
@@ -327,40 +350,42 @@ class FacultyProfileScreen extends ConsumerWidget {
               _MenuTile(
                 icon: Icons.person_outline,
                 label: 'Personal Details',
+                subtitle: 'View your name, mobile & more',
                 iconColor: const Color(0xFF5B4FCF),
-                route:
-                '${RouteConstants.facultyProfile}/${RouteConstants.personalDetails}',
+                route: '${RouteConstants.facultyProfile}/${RouteConstants.personalDetails}',
               ),
               _MenuTile(
                 icon: Icons.menu_book_outlined,
                 label: 'My Subjects',
+                subtitle: 'Subjects assigned to you',
                 iconColor: const Color(0xFF1E8C6E),
-                route:
-                '${RouteConstants.facultyProfile}/${RouteConstants.mySubjects}',
+                route: '${RouteConstants.facultyProfile}/${RouteConstants.mySubjects}',
               ),
               _MenuTile(
-                icon: Icons.history,
+                icon: Icons.history_rounded,
                 label: 'Upload History',
+                subtitle: 'All your past content uploads',
                 iconColor: const Color(0xFF1565C0),
-                route:
-                '${RouteConstants.facultyProfile}/${RouteConstants.uploadHistory}',
+                route: '${RouteConstants.facultyProfile}/${RouteConstants.uploadHistory}',
               ),
               _MenuTile(
-                icon: Icons.help_outline,
+                icon: Icons.help_outline_rounded,
                 label: 'Help & Support',
+                subtitle: 'Get help or report an issue',
                 iconColor: const Color(0xFFE65100),
-                route:
-                '${RouteConstants.facultyProfile}/${RouteConstants.helpSupport}',
+                route: '${RouteConstants.facultyProfile}/${RouteConstants.helpSupport}',
               ),
               const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _handleLogout(context, ref),
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text(
-                    'Log Out',
-                    style: TextStyle(
+                  onPressed: authState.isLoading ? null : () => _handleLogout(context, ref), // ✅ Handle loading
+                  icon: authState.isLoading 
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
+                    : const Icon(Icons.logout, size: 18),
+                  label: Text(
+                    authState.isLoading ? 'Logging Out...' : 'Log Out', // ✅ Update text
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -383,6 +408,7 @@ class FacultyProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
 }
 
 class _EditProfileSheet extends ConsumerStatefulWidget {
@@ -435,15 +461,27 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully.')),
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                SizedBox(width: 10),
+                Text('Profile updated successfully.'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E8C6E),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not save changes: $e'),
+            content: const Text('Could not save changes. Please try again.'),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -606,38 +644,80 @@ class _StatBadge extends StatelessWidget {
   const _StatBadge({
     required this.label,
     required this.value,
+    required this.icon,
     required this.color,
   });
 
   final String label;
   final String value;
+  final IconData icon;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withAlpha(30)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withAlpha(12),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
               color: color,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Colors.black45),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small pill badge used in the hero gradient area.
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color, required this.textColor});
+  final String label;
+  final Color color;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -649,10 +729,12 @@ class _MenuTile extends StatelessWidget {
     required this.label,
     required this.iconColor,
     required this.route,
+    this.subtitle,
   });
 
   final IconData icon;
   final String label;
+  final String? subtitle;
   final Color iconColor;
   final String route;
 
@@ -663,32 +745,66 @@ class _MenuTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: iconColor.withAlpha(20),
-            borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          splashColor: iconColor.withAlpha(15),
+          highlightColor: iconColor.withAlpha(8),
+          onTap: () => context.push(route),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: iconColor.withAlpha(20),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade300, size: 20),
+              ],
+            ),
           ),
-          child: Icon(icon, color: iconColor, size: 20),
         ),
-        title: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: Colors.black87,
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: Colors.grey.shade400,
-          size: 20,
-        ),
-        onTap: () => context.push(route),
       ),
     );
   }

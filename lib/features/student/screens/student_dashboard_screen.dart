@@ -53,10 +53,18 @@ class StudentDashboardScreen extends ConsumerWidget {
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: () async {
-              await ref.read(authProvider.notifier).signOut();
-            },
-            icon: const Icon(Icons.logout),
+            onPressed: authState.isLoading 
+              ? null 
+              : () async {
+                  await ref.read(authProvider.notifier).signOut();
+                },
+            icon: authState.isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.logout),
           ),
         ],
       ),

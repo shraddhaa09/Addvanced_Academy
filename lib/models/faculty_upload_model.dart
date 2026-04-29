@@ -7,6 +7,7 @@ class FacultyUploadModel {
   final String chapter;
   final String title;
   final String description;
+  final String storagePath; // ✅ Added
   final DateTime? uploadedAt;
   final bool isVisible;
 
@@ -19,6 +20,7 @@ class FacultyUploadModel {
     required this.chapter,
     required this.title,
     this.description = '',
+    required this.storagePath, // ✅ Added
     this.uploadedAt,
     required this.isVisible,
   });
@@ -33,6 +35,7 @@ class FacultyUploadModel {
       chapter: json['chapter'] as String? ?? '',
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
+      storagePath: json['storage_path'] as String? ?? '', // ✅ Added
       uploadedAt: json['uploaded_at'] == null ? null : DateTime.tryParse(json['uploaded_at'].toString()),
       isVisible: json['is_visible'] as bool? ?? true,
     );

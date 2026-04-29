@@ -2,13 +2,14 @@ import 'dart:typed_data';
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/errors/app_exceptions.dart';
 
 class MaterialService {
   final SupabaseClient _client;
   MaterialService(this._client);
 
   Future<String> uploadMaterialFile({
-    required dynamic file, // Uint8List or io.File
+    required dynamic file, 
     required String fileName,
     required String facultyId,
     required String subjectId,
@@ -52,11 +53,30 @@ class MaterialService {
     required bool isVisible,
     int? fileSizeKb,
   }) async {
+    // 1. Deduplication Check
+    try {
+      final existing = await _client
+          .schema('academy')
+          .from('study_materials')
+          .select('id')
+          .eq('faculty_id', facultyId)
+          .eq('subject_id', subjectId)
+          .ilike('title', title.trim())
+          .maybeSingle();
+
+      if (existing != null) {
+        throw DuplicateUploadException('A material with this title already exists in this subject.');
+      }
+    } on PostgrestException catch (e) {
+      debugPrint('Deduplication check failed: $e');
+    }
+
+    // 2. Insert
     final payload = {
       'faculty_id': facultyId,
       'subject_id': subjectId,
       'chapter_id': chapterId,
-      'title': title,
+      'title': title.trim(),
       'storage_path': storagePath,
       'description': description,
       'material_type': materialType,
@@ -74,8 +94,12 @@ class MaterialService {
 
       return Map<String, dynamic>.from(response as Map);
     } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw DuplicateUploadException('A material with this title already exists in this subject.');
+      }
       throw Exception('Database Error: ${e.message} (Code: ${e.code})');
     } catch (e) {
+      if (e is DuplicateUploadException) rethrow;
       throw Exception('Unexpected Database Error: $e');
     }
   }
@@ -91,7 +115,6 @@ class MaterialService {
         'student_id': studentId,
       });
     } catch (e) {
-      // Silently fail as view recording shouldn't block the user
       debugPrint('Error recording material view: $e');
     }
   }

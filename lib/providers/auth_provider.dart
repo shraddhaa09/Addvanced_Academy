@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added
 
 import '../services/auth_service.dart';
 
@@ -81,33 +83,41 @@ class AuthNotifier extends StateNotifier<AuthStateModel> {
     final user = _authService.currentUser;
 
     if (user != null) {
-      state = AuthStateModel(
-        isLoading: false,
-        isAuthenticated: true,
-        userId: user.id,
-        email: user.email,
-        role: _resolveTemporaryRole(user.email),
-        errorMessage: null,
-      );
+      _updateUserAndCrashlytics(user);
     }
 
     _authSubscription = _authService.authStateChanges.listen((authState) {
       final user = authState.session?.user;
 
       if (user == null) {
+        // ✅ Handle logout reactively
+        _safeUpdateCrashlytics(null);
         state = AuthStateModel.initial();
         return;
       }
 
-      state = AuthStateModel(
-        isLoading: false,
-        isAuthenticated: true,
-        userId: user.id,
-        email: user.email,
-        role: _resolveTemporaryRole(user.email),
-        errorMessage: null,
-      );
+      _updateUserAndCrashlytics(user);
     });
+  }
+
+  void _safeUpdateCrashlytics(String? userId) {
+    try {
+      FirebaseCrashlytics.instance.setUserIdentifier(userId ?? '');
+    } catch (e) {
+      debugPrint('Crashlytics error: $e');
+    }
+  }
+
+  void _updateUserAndCrashlytics(User user) {
+    _safeUpdateCrashlytics(user.id);
+    state = AuthStateModel(
+      isLoading: false,
+      isAuthenticated: true,
+      userId: user.id,
+      email: user.email,
+      role: _resolveTemporaryRole(user.email),
+      errorMessage: null,
+    );
   }
 
   AppUserRole _resolveTemporaryRole(String? email) {
@@ -150,9 +160,23 @@ class AuthNotifier extends StateNotifier<AuthStateModel> {
     }
   }
 
-  Future<void> signOut() async {
-    await _authService.signOut();
-    state = AuthStateModel.initial();
+  Future<bool> signOut() async {
+    if (state.isLoading) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      _safeUpdateCrashlytics(null);
+      await _authService.signOut();
+      // Note: state is reset reactively by the stream listener in _bootstrap
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Logout failed. Please try again.',
+      );
+      return false;
+    }
   }
 
   @override
