@@ -20,6 +20,8 @@ class RouteConstants {
   static const String uploadHistory = 'upload-history';
   static const String helpSupport = 'help-support';
   static const String facultyAnnouncements = 'announcements';
+  static const String mySubjects = 'my-subjects';
+  static const String uploadHistory = 'upload-history';
 
   static const String videoViewer = 'video-viewer';
   static const String materialViewer = 'material-viewer';

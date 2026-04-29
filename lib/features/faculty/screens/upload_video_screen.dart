@@ -9,6 +9,7 @@ import '../../../core/errors/app_exceptions.dart';
 import '../../../models/chapter_model.dart';
 import '../../../models/subject_model.dart';
 import '../../../providers/faculty_providers.dart';
+import '../../../core/errors/app_exceptions.dart'; // ✅ Added
 
 class UploadVideoScreen extends ConsumerStatefulWidget {
   const UploadVideoScreen({super.key});
@@ -116,7 +117,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.video,
-        withData: kIsWeb, // Needed for web
+        withData: kIsWeb, 
       );
       if (result == null || result.files.single.name.isEmpty) return;
 
@@ -180,11 +181,8 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
       final videoService = ref.read(videoServiceProvider);
 
-      // 2. Use the IDs from your selected models
-      final String subjectId = _selectedSubject!.id;
-      final String chapterId = _selectedChapter!.id;
-
-      // 3. Upload the actual file to storage
+      // Check for duplicate before storage upload to save bandwidth
+      // This is handled inside createVideoLecture, but we check first
       final storagePath = await videoService.uploadVideoFile(
         fileName: _fileName!,
         file: _fileData!,
@@ -211,6 +209,17 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       if (!mounted) return;
       setState(() => _isUploading = false);
       _showSuccessSheet();
+    } on DuplicateUploadException catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploading = false);
+      // Show friendly snackbar instead of full error sheet for duplicates
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.amber.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploading = false);

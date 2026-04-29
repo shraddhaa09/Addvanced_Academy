@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/faculty_upload_model.dart';
 
@@ -58,21 +59,35 @@ class FacultyUploadService {
 
   Future<void> deleteUpload(String id, String contentType) async {
     final table = _resolveTable(contentType);
+    debugPrint('[FacultyUploadService.deleteUpload] id=$id table=$table');
 
+    late List<dynamic> response;
+
+    // Step 1: execute the delete and capture any Supabase/network error
     try {
-      final response = await _client
+      response = await _client
           .schema('academy')
           .from(table)
           .delete()
           .eq('id', id)
-          .select(); // forces return of affected rows
-
-      if (response == null || (response as List).isEmpty) {
-        throw Exception('Delete failed: Record with ID $id not found in $table or permission denied.');
-      }
+          .select();
+      debugPrint('[FacultyUploadService.deleteUpload] rows affected: ${response.length}');
+    } on PostgrestException catch (e) {
+      debugPrint('[FacultyUploadService.deleteUpload] PostgrestException: ${e.message} | code=${e.code}');
+      throw Exception('Database error: ${e.message}');
     } catch (e) {
-      _handleError(e);
-      rethrow;
+      debugPrint('[FacultyUploadService.deleteUpload] Unexpected error: $e');
+      throw Exception('Unexpected error while deleting: $e');
+    }
+
+    // Step 2: verify something was actually deleted
+    // An empty list means RLS blocked it or the row doesn't exist.
+    if (response.isEmpty) {
+      debugPrint('[FacultyUploadService.deleteUpload] Empty response — likely RLS denial or wrong ID');
+      throw Exception(
+        'Could not delete "$id" from $table. '
+        'Check that the record exists and that your RLS policy allows DELETE.',
+      );
     }
   }
 
