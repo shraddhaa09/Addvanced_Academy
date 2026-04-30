@@ -8,8 +8,17 @@ import '../constants/route_constants.dart';
 import '../../features/landing/screens/landing_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 
-//admin
-
+// ── Admin ─────────────────────────────────────────────────────
+import '../../features/admin/screens/admin_dashboard_screen.dart';
+import '../../features/admin/screens/student_database_screen.dart';
+import '../../features/admin/screens/student_registration_screen.dart';
+import '../../features/admin/screens/faculty_registration_screen.dart';
+import '../../features/admin/screens/question_bank_screen.dart';
+import '../../features/admin/screens/add_question_screen.dart';
+import '../../features/admin/screens/create_test_screen.dart';
+import '../../features/admin/screens/assign_test_screen.dart';
+import '../../features/admin/screens/admin_timetable_screen.dart';
+import '../../features/admin/screens/admin_reports_screen.dart';
 
 // Faculty
 import '../../features/faculty/screens/faculty_dashboard_screen.dart';
@@ -150,12 +159,107 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
 
-      // ===== ADMIN =====
+      // ═════════════════════════════════════════════════════
+      //  ADMIN SHELL
+      // ═════════════════════════════════════════════════════
       GoRoute(
         path: RouteConstants.adminDashboard,
-        builder: (context, state) =>
-        const _PlaceholderScreen(title: 'Admin Dashboard'),
+        name: 'adminDashboard',
+        pageBuilder: (context, state) =>
+            _slide(state, const AdminDashboardScreen()),
+        routes: [
+          // ── Students ──────────────────────────────────────
+          GoRoute(
+            path: 'students',
+            name: 'studentDatabase',
+            pageBuilder: (context, state) =>
+                _slide(state, const StudentDatabaseScreen()),
+            routes: [
+              GoRoute(
+                path: 'register',
+                name: 'studentRegistration',
+                pageBuilder: (context, state) =>
+                    _slide(state, const StudentRegistrationScreen()),
+              ),
+            ],
+          ),
+
+          // ── Faculty ───────────────────────────────────────
+          GoRoute(
+            path: 'faculty/register',
+            name: 'facultyRegistration',
+            pageBuilder: (context, state) =>
+                _slide(state, const FacultyRegistrationScreen()),
+          ),
+
+          // ── Question Bank ──────────────────────────────────
+          GoRoute(
+            path: 'question-bank',
+            name: 'questionBank',
+            pageBuilder: (context, state) =>
+                _slide(state, const QuestionBankScreen()),
+            routes: [
+              GoRoute(
+                path: 'add',
+                name: 'addQuestion',
+                pageBuilder: (context, state) {
+                  // Optional pre-fill via query params
+                  final subject = state.uri.queryParameters['subject'];
+                  final chapterId = state.uri.queryParameters['chapter_id'];
+                  return _slide(
+                    state,
+                    AddQuestionScreen(
+                      prefilledSubject: subject,
+                      prefilledChapterId: chapterId,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // ── Tests ─────────────────────────────────────────
+          GoRoute(
+            path: 'tests',
+            name: 'tests',
+            pageBuilder: (context, state) =>
+                _slide(state, const NewTestScreen()),
+            routes: [
+              GoRoute(
+                path: 'create',
+                name: 'createTest',
+                pageBuilder: (context, state) =>
+                    _slide(state, const NewTestScreen()),
+              ),
+              GoRoute(
+                path: ':testId/assign',
+                name: 'assignTest',
+                pageBuilder: (context, state) {
+                  final testId = state.pathParameters['testId']!;
+                  return _slide(state, AssignTestScreen(testId: testId));
+                },
+              ),
+            ],
+          ),
+
+          // ── Timetable ──────────────────────────────────────
+          GoRoute(
+            path: 'timetable',
+            name: 'adminTimetable',
+            pageBuilder: (context, state) =>
+                _slide(state, const AdminTimetableScreen()),
+          ),
+
+          // ── Reports ────────────────────────────────────────
+          GoRoute(
+            path: 'reports',
+            name: 'adminReports',
+            pageBuilder: (context, state) =>
+                _slide(state, const AdminReportsScreen()),
+          ),
+        ],
       ),
+
 
       // =========================================================
       // FACULTY SHELL
@@ -451,4 +555,21 @@ class _PlaceholderScreen extends ConsumerWidget {
       body: Center(child: Text(title)),
     );
   }
+}
+CustomTransitionPage _slide(GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: animation.drive(
+          Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+        ),
+        child: child,
+      );
+    },
+  );
 }

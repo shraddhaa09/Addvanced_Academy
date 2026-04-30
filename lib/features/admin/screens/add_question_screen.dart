@@ -273,7 +273,14 @@ final addQuestionProvider =
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class AddQuestionScreen extends ConsumerStatefulWidget {
-  const AddQuestionScreen({super.key});
+  const AddQuestionScreen({
+    super.key,
+    this.prefilledSubject,
+    this.prefilledChapterId,
+  });
+
+  final String? prefilledSubject;
+  final String? prefilledChapterId;
 
   @override
   ConsumerState<AddQuestionScreen> createState() => _AddQuestionScreenState();

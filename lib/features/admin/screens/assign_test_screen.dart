@@ -283,6 +283,7 @@ class AssignTestNotifier extends StateNotifier<AssignTestState> {
   }
 }
 
+
 final assignTestProvider =
     StateNotifierProvider.autoDispose<AssignTestNotifier, AssignTestState>(
       (ref) => AssignTestNotifier(),
@@ -293,7 +294,8 @@ final assignTestProvider =
 // ─────────────────────────────────────────
 
 class AssignTestScreen extends ConsumerWidget {
-  const AssignTestScreen({super.key});
+  const AssignTestScreen({super.key, required this.testId});
+  final String testId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

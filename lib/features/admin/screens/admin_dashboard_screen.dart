@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/constants/route_constants.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  PROVIDERS
@@ -94,7 +95,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 28),
                 _SectionHeader(
                   title: 'Core Modules',
-                  onViewAll: () => context.push('/admin/modules'),
                 ),
                 const SizedBox(height: 16),
                 _CoreModulesGrid(),
@@ -371,7 +371,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.person_rounded,
       iconBg: const Color(0xFFEDE9FE),
       iconColor: const Color(0xFF6D28D9),
-      onTap: () => context.push('/admin/students'),
+      onTap: () => context.push(RouteConstants.studentDatabase),
     ),
     _ModuleItem(
       title: 'Faculty',
@@ -379,7 +379,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.supervised_user_circle_rounded,
       iconBg: const Color(0xFFD1FAE5),
       iconColor: const Color(0xFF059669),
-      onTap: () => context.push('/admin/faculty'),
+      onTap: () => context.push(RouteConstants.facultyRegistration),
     ),
     _ModuleItem(
       title: 'Question Bank',
@@ -387,7 +387,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.help_outline_rounded,
       iconBg: const Color(0xFFFEF3C7),
       iconColor: const Color(0xFFD97706),
-      onTap: () => context.push('/admin/question-bank'),
+      onTap: () => context.push(RouteConstants.questionBank),
     ),
     _ModuleItem(
       title: 'Tests',
@@ -395,7 +395,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.fact_check_rounded,
       iconBg: const Color(0xFFFEE2E2),
       iconColor: const Color(0xFFDC2626),
-      onTap: () => context.push('/admin/tests'),
+      onTap: () => context.push(RouteConstants.tests),
     ),
     _ModuleItem(
       title: 'Timetable',
@@ -403,7 +403,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.calendar_today_rounded,
       iconBg: const Color(0xFFF3F4F6),
       iconColor: const Color(0xFF6B7280),
-      onTap: () => context.push('/admin/timetable'),
+      onTap: () => context.push(RouteConstants.adminTimetable),
     ),
     _ModuleItem(
       title: 'Reports',
@@ -411,7 +411,7 @@ class _CoreModulesGrid extends StatelessWidget {
       icon: Icons.bar_chart_rounded,
       iconBg: const Color(0xFFEEF2FF),
       iconColor: const Color(0xFF4F46E5),
-      onTap: () => context.push('/admin/reports'),
+      onTap: () => context.push(RouteConstants.adminReports),
     ),
   ];
 }

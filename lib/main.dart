@@ -21,6 +21,7 @@ Future<void> main() async {
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
+    postgrestOptions: const PostgrestClientOptions(schema: 'academy'),
   );
 
   // 3. Setup Crashlytics for Flutter framework errors

@@ -5,6 +5,16 @@ class RouteConstants {
   static const String login = '/login';
 
   static const String adminDashboard = '/admin';
+  static const String studentDatabase     = '/admin/students';
+  static const String studentRegistration = '/admin/students/register';
+  static const String facultyRegistration = '/admin/faculty/register';
+  static const String questionBank = '/admin/question-bank';
+  static const String addQuestion  = '/admin/question-bank/add';
+  static const String tests      = '/admin/tests';
+  static const String createTest = '/admin/tests/create';
+  static const String assignTest = '/admin/tests/:testId/assign';
+  static const String adminTimetable = '/admin/timetable';
+  static const String adminReports   = '/admin/reports';
 
   static const String facultyDashboard = '/faculty';
   static const String facultySchedule = '/faculty/schedule';
