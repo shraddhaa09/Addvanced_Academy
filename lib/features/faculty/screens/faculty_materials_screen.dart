@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/constants/route_constants.dart';
-import '../../../core/widgets/shimmer_widgets.dart';
 import '../../../models/faculty_upload_model.dart';
 import '../../../providers/faculty_providers.dart';
 import '../widgets/recent_upload_tile.dart';
@@ -173,7 +171,7 @@ class _FacultyMaterialsScreenState
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: color.withAlpha(30),
+              backgroundColor: color.withValues(alpha: 0.1),
               child: Text(_initials(name), style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
             ),
             const SizedBox(width: 12),
@@ -198,18 +196,12 @@ class _FacultyMaterialsScreenState
       },
       loading: () => const Row(
         children: [
-          const _ShimmerBox(width: 40, height: 40, borderRadius: 20),
-          const SizedBox(width: 12),
+          _ShimmerBox(width: 40, height: 40, borderRadius: 20),
+          SizedBox(width: 12),
           _ShimmerBox(width: 140, height: 16, borderRadius: 8),
         ],
       ),
       error: (err, stack) => const Text('Error loading profile'),
-          ShimmerBox(width: 40, height: 40, borderRadius: 20),
-          SizedBox(width: 12),
-          ShimmerBox(width: 140, height: 16, borderRadius: 8),
-        ],
-      ),
-      error: (_, __) => const Text('Error loading profile'),
     );
   }
 
@@ -228,7 +220,11 @@ class _FacultyMaterialsScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [accent, accent.withAlpha(180)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(
+                  colors: [accent, accent.withValues(alpha: 0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight
+              ),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Column(
@@ -242,8 +238,6 @@ class _FacultyMaterialsScreenState
         );
       },
       loading: () => const _ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
-      loading: () =>
-          const ShimmerBox(width: double.infinity, height: 140, borderRadius: 18),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -259,21 +253,16 @@ class _FacultyMaterialsScreenState
           Expanded(child: _StatCard(label: 'Total', value: '${stats['total_uploads']}', icon: Icons.cloud_done_outlined, color: const Color(0xFFE65100))),
         ],
       ),
-      loading: () => Row(children: List.generate(3, (_) => const Expanded(child: Padding(padding: EdgeInsets.symmetric(horizontal: 5), child: _ShimmerBox(width: double.infinity, height: 84, borderRadius: 14))))),
-      loading: () => const Row(
-        children: [
-          Expanded(
-              child: ShimmerBox(
-                  width: double.infinity, height: 84, borderRadius: 14)),
-          SizedBox(width: 10),
-          Expanded(
-              child: ShimmerBox(
-                  width: double.infinity, height: 84, borderRadius: 14)),
-          SizedBox(width: 10),
-          Expanded(
-              child: ShimmerBox(
-                  width: double.infinity, height: 84, borderRadius: 14)),
-        ],
+      loading: () => Row(
+          children: List.generate(
+              3,
+                  (_) => const Expanded(
+                  child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 5),
+                      child: _ShimmerBox(width: double.infinity, height: 84, borderRadius: 14)
+                  )
+              )
+          )
       ),
       error: (_, __) => const SizedBox.shrink(),
     );
@@ -298,7 +287,7 @@ class _FacultyMaterialsScreenState
       scrollDirection: Axis.horizontal,
       child: Row(
         children: _filters.map((f) {
-          final (key, label, icon) = f;
+          final (key, label, _) = f;
           final selected = _activeFilter == key;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -330,7 +319,7 @@ class _FacultyMaterialsScreenState
                   .where((u) => _searchQuery.isEmpty || u.title.toLowerCase().contains(_searchQuery))
                   .toList();
 
-              if (filtered.isEmpty) return _EmptyState(query: _searchQuery, filter: _activeFilter);
+              if (filtered.isEmpty) return _EmptyState(query: _searchQuery);
 
               return ListView.builder(
                 shrinkWrap: true,
@@ -362,16 +351,14 @@ class _FacultyMaterialsScreenState
   }
 
   Widget _buildShimmerList() {
-    return Column(children: List.generate(3, (_) => const Padding(padding: EdgeInsets.only(bottom: 12), child: _ShimmerBox(width: double.infinity, height: 80, borderRadius: 12))));
     return Column(
-      children: List.generate(
-        3,
-        (_) => const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: ShimmerBox(
-              width: double.infinity, height: 80, borderRadius: 12),
-        ),
-      ),
+        children: List.generate(
+            3,
+                (_) => const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: _ShimmerBox(width: double.infinity, height: 80, borderRadius: 12)
+            )
+        )
     );
   }
 
@@ -407,8 +394,8 @@ class _StatCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({this.query = '', this.filter = 'all'});
-  final String query, filter;
+  const _EmptyState({this.query = ''});
+  final String query;
 
   @override
   Widget build(BuildContext context) {
@@ -427,7 +414,7 @@ class _EmptyState extends StatelessWidget {
 
 class _ShimmerBox extends StatefulWidget {
   final double width, height, borderRadius;
-  const _ShimmerBox({super.key, required this.width, required this.height, required this.borderRadius});
+  const _ShimmerBox({required this.width, required this.height, required this.borderRadius});
 
   @override
   State<_ShimmerBox> createState() => _ShimmerBoxState();
@@ -457,7 +444,10 @@ class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderState
       child: Container(
         width: widget.width,
         height: widget.height,
-        decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(widget.borderRadius)),
+        decoration: BoxDecoration(
+            color: const Color(0xFFE5E7EB),
+            borderRadius: BorderRadius.circular(widget.borderRadius)
+        ),
       ),
     );
   }
