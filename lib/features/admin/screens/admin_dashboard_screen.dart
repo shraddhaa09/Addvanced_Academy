@@ -10,33 +10,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 final adminStatsProvider = FutureProvider<AdminStats>((ref) async {
   final supabase = Supabase.instance.client;
 
+  // FIX: In Supabase v2, count is handled differently.
+  // We use the 'count' parameter in select() and access it from the 'PostgrestResponse'.
   final results = await Future.wait([
-    supabase
-        .from('students')
-        .select('id', const FetchOptions(count: CountOption.exact, head: true)),
-    supabase
-        .from('faculty')
-        .select('id', const FetchOptions(count: CountOption.exact, head: true)),
-    supabase
-        .from('tests')
-        .select('id', const FetchOptions(count: CountOption.exact, head: true)),
+    supabase.from('students').select('*').count(CountOption.exact),
+    supabase.from('faculty').select('*').count(CountOption.exact),
+    supabase.from('tests').select('*').count(CountOption.exact),
   ]);
 
   return AdminStats(
-    studentCount: results[0].count ?? 0,
-    facultyCount: results[1].count ?? 0,
-    testCount: results[2].count ?? 0,
+    studentCount: results[0].count,
+    facultyCount: results[1].count,
+    testCount: results[2].count,
   );
 });
 
 final onlineFacultyProvider = FutureProvider<List<FacultyAvatar>>((ref) async {
   final supabase = Supabase.instance.client;
-  final data = await supabase.from('faculty').select('id, name').limit(14);
+  // .select() returns a PostgrestList which is a List<Map<String, dynamic>>
+  final List<dynamic> data = await supabase.from('faculty').select('id, name').limit(14);
 
-  return (data as List)
-      .map(
-        (e) => FacultyAvatar(id: e['id'] as String, name: e['name'] as String),
-  )
+  return data
+      .map((e) => FacultyAvatar(
+    id: e['id'] as String,
+    name: e['name'] as String,
+  ))
       .toList();
 });
 
@@ -78,40 +76,37 @@ class AdminDashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5FA),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ──────────────────────────────────────
-              _Header(),
-              const SizedBox(height: 24),
-
-              // ── Stats Row ───────────────────────────────────
-              statsAsync.when(
-                loading: () => _StatsRowSkeleton(),
-                error: (e, _) => _StatsRowError(error: e.toString()),
-                data: (stats) => _StatsRow(stats: stats),
-              ),
-              const SizedBox(height: 28),
-
-              // ── Core Modules ────────────────────────────────
-              _SectionHeader(
-                title: 'Core Modules',
-                onViewAll: () => context.push('/admin/modules'),
-              ),
-              const SizedBox(height: 16),
-              _CoreModulesGrid(),
-              const SizedBox(height: 24),
-
-              // ── Academy Status Banner ────────────────────────
-              facultyAsync.when(
-                loading: () => _AcademyStatusBanner(facultyAvatars: []),
-                error: (_, __) => _AcademyStatusBanner(facultyAvatars: []),
-                data: (list) => _AcademyStatusBanner(facultyAvatars: list),
-              ),
-              const SizedBox(height: 16),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () => ref.refresh(adminStatsProvider.future),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Header(),
+                const SizedBox(height: 24),
+                statsAsync.when(
+                  loading: () => _StatsRowSkeleton(),
+                  error: (e, _) => _StatsRowError(error: e.toString()),
+                  data: (stats) => _StatsRow(stats: stats),
+                ),
+                const SizedBox(height: 28),
+                _SectionHeader(
+                  title: 'Core Modules',
+                  onViewAll: () => context.push('/admin/modules'),
+                ),
+                const SizedBox(height: 16),
+                _CoreModulesGrid(),
+                const SizedBox(height: 24),
+                facultyAsync.when(
+                  loading: () => const _AcademyStatusBanner(facultyAvatars: []),
+                  error: (_, __) => const _AcademyStatusBanner(facultyAvatars: []),
+                  data: (list) => _AcademyStatusBanner(facultyAvatars: list),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
@@ -128,17 +123,12 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Avatar
         Container(
           width: 52,
           height: 52,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.grey.shade300,
-            image: const DecorationImage(
-              image: AssetImage('assets/images/admin_avatar.png'),
-              fit: BoxFit.cover,
-            ),
           ),
           child: ClipOval(
             child: Image.asset(
@@ -152,8 +142,6 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-
-        // Title
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,8 +167,6 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-
-        // Logout
         IconButton(
           onPressed: () async {
             await Supabase.instance.client.auth.signOut();
@@ -275,7 +261,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05), // FIX: Deprecated withOpacity
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -318,58 +304,8 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _StatsRowSkeleton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(
-        3,
-            (i) => Expanded(
-          child: Container(
-            height: 120,
-            margin: EdgeInsets.only(right: i < 2 ? 12 : 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const _ShimmerBox(),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatsRowError extends StatelessWidget {
-  final String error;
-  const _StatsRowError({required this.error});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFDC2626)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Failed to load stats',
-              style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─────────────────────────────────────────────────────────────
-//  SECTION HEADER
+//  SECTION HEADER & MODULES
 // ─────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
@@ -409,10 +345,6 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-//  CORE MODULES GRID
-// ─────────────────────────────────────────────────────────────
 
 class _CoreModulesGrid extends StatelessWidget {
   @override
@@ -532,7 +464,7 @@ class _ModuleCardState extends State<_ModuleCard> {
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -541,7 +473,6 @@ class _ModuleCardState extends State<_ModuleCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon Box
               Container(
                 width: 48,
                 height: 48,
@@ -556,8 +487,6 @@ class _ModuleCardState extends State<_ModuleCard> {
                 ),
               ),
               const Spacer(),
-
-              // Title
               Text(
                 widget.item.title,
                 style: const TextStyle(
@@ -568,8 +497,6 @@ class _ModuleCardState extends State<_ModuleCard> {
                 ),
               ),
               const SizedBox(height: 4),
-
-              // Subtitle
               Text(
                 widget.item.subtitle,
                 style: TextStyle(
@@ -598,7 +525,6 @@ class _AcademyStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show max 2 avatars + overflow chip
     final shown = facultyAvatars.take(2).toList();
     final overflowCount = (facultyAvatars.length - 2).clamp(0, 99);
 
@@ -614,7 +540,7 @@ class _AcademyStatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4F46E5).withOpacity(0.35),
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -623,7 +549,6 @@ class _AcademyStatusBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
           const Text(
             'Academy Status',
             style: TextStyle(
@@ -638,16 +563,13 @@ class _AcademyStatusBanner extends StatelessWidget {
             'Platform active. All systems operational.',
             style: TextStyle(
               fontSize: 13,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 16),
-
-          // Avatars row
           Row(
             children: [
-              // Stacked avatars
               SizedBox(
                 width: shown.length * 28.0 + (overflowCount > 0 ? 32 : 0),
                 height: 36,
@@ -666,7 +588,7 @@ class _AcademyStatusBanner extends StatelessWidget {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
+                            color: Colors.white.withValues(alpha: 0.25),
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
@@ -691,20 +613,14 @@ class _AcademyStatusBanner extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
-
               const Spacer(),
-
-              // Active indicator
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -743,7 +659,6 @@ class _FacultyAvatarChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Generate deterministic background color from name
     final colors = [
       const Color(0xFF7C3AED),
       const Color(0xFF2563EB),
@@ -776,8 +691,58 @@ class _FacultyAvatarChip extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  SHIMMER PLACEHOLDER
+//  FEEDBACK WIDGETS
 // ─────────────────────────────────────────────────────────────
+
+class _StatsRowSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        3,
+            (i) => Expanded(
+          child: Container(
+            height: 120,
+            margin: EdgeInsets.only(right: i < 2 ? 12 : 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const _ShimmerBox(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsRowError extends StatelessWidget {
+  final String error;
+  const _StatsRowError({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEE2E2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFDC2626)),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Failed to load stats',
+              style: TextStyle(color: Color(0xFFDC2626), fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ShimmerBox extends StatefulWidget {
   const _ShimmerBox();
@@ -816,7 +781,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
       animation: _anim,
       builder: (_, __) => Container(
         decoration: BoxDecoration(
-          color: Colors.grey.shade200.withOpacity(_anim.value),
+          color: Colors.grey.shade200.withValues(alpha: _anim.value),
           borderRadius: BorderRadius.circular(16),
         ),
       ),

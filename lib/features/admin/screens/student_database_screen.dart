@@ -614,7 +614,12 @@ class _FilterDropdown<T> extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             items: items,
             onChanged: (v) {
-              if (v != null || T == String?) onChanged(v as T);
+              if (v != null) {
+                onChanged(v as T);
+              } else if ('' is T) {
+                // This handles cases where T is a nullable String and you want to pass null
+                onChanged(null as T);
+              }
             },
           ),
         ),
