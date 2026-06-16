@@ -56,7 +56,6 @@ class _EditUploadScreenState extends ConsumerState<EditUploadScreen> {
 
       // Also invalidate view counts in case visibility/stats changed
       final facultyIdAsync = ref.read(currentFacultyIdProvider);
-// Use .value to get the actual String? from the AsyncValue
       final facultyId = facultyIdAsync.value;
 
       if (facultyId != null) {

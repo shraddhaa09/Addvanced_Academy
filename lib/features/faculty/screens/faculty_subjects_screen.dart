@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/faculty_providers.dart';
 import '../../../models/timetable_model.dart';
 
-// ---------------------------------------------------------------------------
-// Helpers — extract to core/utils/faculty_ui_helpers.dart to share across screens
-// ---------------------------------------------------------------------------
+/// UI Helper functions for the Faculty Subjects Screen.
 
 Color _subjectColor(String? subject) {
   switch (subject?.toLowerCase()) {
@@ -38,9 +36,7 @@ IconData _subjectIcon(String? subject) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Demo batch data — replace with a real Supabase provider when batches are live
-// ---------------------------------------------------------------------------
+/// Represents a batch assignment for the faculty.
 
 class _BatchData {
   _BatchData({
@@ -56,9 +52,7 @@ class _BatchData {
   final Color color;
 }
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+
 
 class FacultySubjectsScreen extends ConsumerWidget {
   const FacultySubjectsScreen({super.key});
@@ -123,7 +117,7 @@ class FacultySubjectsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Specialization ─────────────────────────────────────
+                    // Specialization Section
                     const _SectionHeader(title: 'Your Specialization'),
                     const SizedBox(height: 14),
 
@@ -133,7 +127,7 @@ class FacultySubjectsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 32),
 
-                    // ── Assigned Batches ───────────────────────────────────
+                    // Assigned Batches Section
                     const _SectionHeader(title: 'Assigned Batches'),
                     const SizedBox(height: 14),
 
@@ -161,7 +155,7 @@ class FacultySubjectsScreen extends ConsumerWidget {
                       ...batches.map((batch) => _BatchTile(batch: batch)),
                     const SizedBox(height: 32),
 
-                    // ── Admin note ─────────────────────────────────────────
+                    // Admin Note Section
                     const _AdminNote(
                       message:
                       'Your subject specialization and batch allocations are '
@@ -184,9 +178,7 @@ class FacultySubjectsScreen extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Sub-widgets
-// ---------------------------------------------------------------------------
 
 /// Accent-bar section header — consistent with other faculty screens.
 class _SectionHeader extends StatelessWidget {
@@ -445,9 +437,7 @@ class _AdminNote extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Loading skeleton
-// ---------------------------------------------------------------------------
 
 class _LoadingSkeleton extends StatelessWidget {
   const _LoadingSkeleton();
@@ -482,9 +472,7 @@ class _LoadingSkeleton extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Error state
-// ---------------------------------------------------------------------------
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message});
@@ -513,9 +501,7 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shimmer box — extract to core/widgets/shimmer_box.dart
-// ---------------------------------------------------------------------------
+/// Reusable Shimmer loading effect.
 
 class _ShimmerBox extends StatefulWidget {
   const _ShimmerBox({

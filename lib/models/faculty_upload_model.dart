@@ -7,7 +7,7 @@ class FacultyUploadModel {
   final String chapter;
   final String title;
   final String description;
-  final String storagePath; // ✅ Added
+  final String storagePath; 
   final DateTime? uploadedAt;
   final bool isVisible;
 
@@ -20,7 +20,7 @@ class FacultyUploadModel {
     required this.chapter,
     required this.title,
     this.description = '',
-    required this.storagePath, // ✅ Added
+    required this.storagePath,
     this.uploadedAt,
     required this.isVisible,
   });

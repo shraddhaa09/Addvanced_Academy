@@ -27,17 +27,12 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
   @override
   @override
   Widget build(BuildContext context) {
-    // 1. WATCH PROVIDERS
-    final facultyIdAsync = ref.watch(currentFacultyIdProvider);
-
-    // Define facultyId by extracting it from the AsyncValue
-    // Use .valueOrNull to get the raw String? without triggering UI logic here
+    // Extract facultyId from the AsyncValue without triggering UI loading logic.
     final String? facultyId = facultyIdAsync.valueOrNull;
 
-    // Now facultyId is defined for these providers:
     final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
 
-    // Use a fallback empty string or handle the null case to avoid crashes
+    // Provide a fallback empty string to avoid provider resolution crashes when ID is null.
     final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId ?? ''));
 
     final _ = ref.watch(facultyStatsProvider);
@@ -46,7 +41,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: const Text('Upload History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        // ... rest of your AppBar code
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -60,13 +54,11 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
             children: [
               _buildSearchBar(),
               Expanded(
-                // Use the .when pattern to handle the UI states
                 child: facultyIdAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, _) => Center(child: Text('Error: $err')),
                   data: (id) {
                     if (id == null) return _buildEmptyState();
-                    // Call your helper method which now has a guaranteed non-null ID
                     return _buildContent(id);
                   },
                 ),
@@ -78,7 +70,7 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
     );
   }
 
-  // REUSABLE SEARCH BAR
+  /// Builds the search bar and filter chips for the upload history list.
   Widget _buildSearchBar() {
     return Container(
       color: Colors.white,
@@ -106,7 +98,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
   }
 
   Widget _buildContent(String facultyId) {
-    // Watch the uploads and view counts using the confirmed facultyId
     final uploadsAsync = ref.watch(recentFacultyUploadsProvider(null));
     final viewCountsAsync = ref.watch(contentViewCountsProvider(facultyId));
 
@@ -114,7 +105,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Uploads Error: $err')),
       data: (uploads) {
-        // Safely extract view counts or default to an empty map
         final viewCounts = viewCountsAsync.valueOrNull ?? {};
 
         // Apply local filtering based on search query and chip selection
@@ -161,7 +151,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
 
   Widget _buildEmptyState() => const Center(child: Text("No uploads found"));
 
-  // Fix: Handling 'BuildContext across async gaps'
   Future<void> _handleDelete(dynamic item) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -178,7 +167,6 @@ class _FacultyUploadHistoryScreenState extends ConsumerState<FacultyUploadHistor
       try {
         await ref.read(facultyUploadServiceProvider).deleteUpload(item.id, item.contentType);
 
-        // Fix: Use 'mounted' check before using BuildContext after 'await'
         if (!mounted) return;
 
         ref.invalidate(recentFacultyUploadsProvider);

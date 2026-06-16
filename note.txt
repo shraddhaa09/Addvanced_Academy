@@ -1,0 +1,248 @@
+-- ============================================================
+-- ADDVANCED ACADEMY — FACULTY SAMPLE DATASET
+-- ============================================================
+-- HOW TO USE:
+-- 1. First create two faculty users in Supabase Auth (Authentication → Users)
+-- 2. Copy their UUIDs and replace the two DO block variables below
+-- 3. Run this entire script in the Supabase SQL Editor
+-- ============================================================
+
+DO $$
+DECLARE
+  -- ⚠️ REPLACE these with real UUIDs from your Supabase Auth → Users tab
+  faculty1_auth_id UUID := '7ce8b738-85f9-434d-910d-249bb15de97e';
+
+  -- Subject UUIDs (auto-generated, no need to change)
+  sub_physics    UUID := '41448442-5d75-4c08-bd75-e88de2adfb1e';
+  sub_chemistry  UUID := '1d35825f-21ce-4aaa-9dcc-eb1f9d18c2b7';
+  sub_maths      UUID := '60c07536-9187-4e8b-9f72-66e97e7301b9';
+  sub_biology    UUID := '2ff453db-3ceb-4753-8d8b-d39962a3d68d';
+
+BEGIN
+
+-- ============================================================
+-- 1. SUBJECTS
+-- ============================================================
+INSERT INTO academy.subjects (id, name, label, created_at) VALUES
+  (sub_physics,   'Physics',   'PHY', now()),
+  (sub_chemistry, 'Chemistry', 'CHE', now()),
+  (sub_maths,     'Maths',     'MTH', now()),
+  (sub_biology,   'Biology',   'BIO', now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 2. CHAPTERS (10 per subject)
+-- ============================================================
+INSERT INTO academy.chapters (id, subject_id, name, chapter_no, created_at) VALUES
+  -- Physics
+  (gen_random_uuid(), sub_physics, 'Units and Measurement',           1, now()),
+  (gen_random_uuid(), sub_physics, 'Motion in a Straight Line',       2, now()),
+  (gen_random_uuid(), sub_physics, 'Laws of Motion',                  3, now()),
+  (gen_random_uuid(), sub_physics, 'Work, Energy and Power',          4, now()),
+  (gen_random_uuid(), sub_physics, 'Rotational Motion',               5, now()),
+  (gen_random_uuid(), sub_physics, 'Gravitation',                     6, now()),
+  (gen_random_uuid(), sub_physics, 'Mechanical Properties of Solids', 7, now()),
+  (gen_random_uuid(), sub_physics, 'Thermodynamics',                  8, now()),
+  (gen_random_uuid(), sub_physics, 'Waves',                           9, now()),
+  (gen_random_uuid(), sub_physics, 'Electrostatics',                 10, now()),
+
+  -- Chemistry
+  (gen_random_uuid(), sub_chemistry, 'Some Basic Concepts',           1, now()),
+  (gen_random_uuid(), sub_chemistry, 'Structure of Atom',             2, now()),
+  (gen_random_uuid(), sub_chemistry, 'Periodic Table',                3, now()),
+  (gen_random_uuid(), sub_chemistry, 'Chemical Bonding',              4, now()),
+  (gen_random_uuid(), sub_chemistry, 'States of Matter',              5, now()),
+  (gen_random_uuid(), sub_chemistry, 'Thermochemistry',               6, now()),
+  (gen_random_uuid(), sub_chemistry, 'Equilibrium',                   7, now()),
+  (gen_random_uuid(), sub_chemistry, 'Redox Reactions',               8, now()),
+  (gen_random_uuid(), sub_chemistry, 'Electrochemistry',              9, now()),
+  (gen_random_uuid(), sub_chemistry, 'Organic Chemistry Basics',     10, now()),
+
+  -- Maths
+  (gen_random_uuid(), sub_maths, 'Sets, Relations and Functions',     1, now()),
+  (gen_random_uuid(), sub_maths, 'Complex Numbers',                   2, now()),
+  (gen_random_uuid(), sub_maths, 'Quadratic Equations',               3, now()),
+  (gen_random_uuid(), sub_maths, 'Sequence and Series',               4, now()),
+  (gen_random_uuid(), sub_maths, 'Permutation and Combination',       5, now()),
+  (gen_random_uuid(), sub_maths, 'Binomial Theorem',                  6, now()),
+  (gen_random_uuid(), sub_maths, 'Limits and Continuity',             7, now()),
+  (gen_random_uuid(), sub_maths, 'Differentiation',                   8, now()),
+  (gen_random_uuid(), sub_maths, 'Integration',                       9, now()),
+  (gen_random_uuid(), sub_maths, 'Matrices and Determinants',        10, now()),
+
+  -- Biology
+  (gen_random_uuid(), sub_biology, 'Cell: The Unit of Life',          1, now()),
+  (gen_random_uuid(), sub_biology, 'Cell Cycle and Division',         2, now()),
+  (gen_random_uuid(), sub_biology, 'Plant Physiology',                3, now()),
+  (gen_random_uuid(), sub_biology, 'Human Physiology',                4, now()),
+  (gen_random_uuid(), sub_biology, 'Genetics and Evolution',          5, now()),
+  (gen_random_uuid(), sub_biology, 'Molecular Basis of Inheritance',  6, now()),
+  (gen_random_uuid(), sub_biology, 'Biotechnology',                   7, now()),
+  (gen_random_uuid(), sub_biology, 'Ecology',                         8, now()),
+  (gen_random_uuid(), sub_biology, 'Reproduction in Plants',          9, now()),
+  (gen_random_uuid(), sub_biology, 'Human Reproduction',             10, now());
+
+-- ============================================================
+-- 3. USERS  (id = auth UUID so currentFacultyIdProvider works)
+-- ============================================================
+INSERT INTO academy.users (id, auth_id, created_at) VALUES
+  (faculty1_auth_id, faculty1_auth_id, now()),
+  (faculty2_auth_id, faculty2_auth_id, now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 4. FACULTY PROFILES  (id = auth UUID so updateProfile works)
+-- ============================================================
+INSERT INTO academy.faculty (id, name, mobile, subject, qualification, created_at, updated_at) VALUES
+  (faculty1_auth_id, 'Dr. Anita Sharma',   '9876543210', 'Physics',   'M.Sc Physics, PhD',    now(), now()),
+  (faculty2_auth_id, 'Prof. Rahul Gupta',  '9123456780', 'Chemistry', 'M.Sc Chemistry, B.Ed', now(), now())
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 5. TIMETABLE
+-- ============================================================
+INSERT INTO academy.timetable (id, faculty_id, subject_id, day, start_time, end_time, room, type) VALUES
+  -- Faculty 1 (Physics)
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'mon', '09:00', '10:00', 'Room 101', 'lecture'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'mon', '11:00', '12:00', 'Lab 1',   'lab'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'tue', '10:00', '11:00', 'Room 101', 'lecture'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'wed', '09:00', '10:00', 'Room 101', 'lecture'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'wed', '14:00', '15:00', 'Room 102', 'tutorial'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'thu', '11:00', '12:00', 'Lab 1',   'lab'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'fri', '09:00', '10:00', 'Room 101', 'lecture'),
+  (gen_random_uuid(), faculty1_auth_id, sub_physics, 'sat', '10:00', '12:00', 'Room 101', 'lecture'),
+
+  -- Faculty 2 (Chemistry)
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'mon', '10:00', '11:00', 'Room 201', 'lecture'),
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'tue', '09:00', '10:00', 'Room 201', 'lecture'),
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'tue', '14:00', '15:00', 'Lab 2',   'lab'),
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'thu', '10:00', '11:00', 'Room 201', 'lecture'),
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'fri', '11:00', '12:00', 'Lab 2',   'lab'),
+  (gen_random_uuid(), faculty2_auth_id, sub_chemistry, 'sat', '09:00', '11:00', 'Room 201', 'lecture');
+
+-- ============================================================
+-- 6. VIDEO LECTURES
+-- ============================================================
+INSERT INTO academy.video_lectures
+  (id, faculty_id, subject, chapter, title, description, storage_path, is_visible, uploaded_at)
+VALUES
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Units and Measurement',
+   'Introduction to SI Units',
+   'Complete explanation of SI base units with solved examples.',
+   'videos/faculty1/units-intro.mp4', true, now() - interval '10 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Motion in a Straight Line',
+   'Uniform vs Non-Uniform Motion',
+   'Distance-time and velocity-time graphs with MCQ practice.',
+   'videos/faculty1/motion-straight-line.mp4', true, now() - interval '8 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Laws of Motion',
+   'Newton''s Three Laws — Full Lecture',
+   'Derivations, applications and MHT-CET previous year questions.',
+   'videos/faculty1/newtons-laws.mp4', true, now() - interval '6 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Work, Energy and Power',
+   'Work-Energy Theorem Explained',
+   'Proof and numerical problems for MHT-CET level.',
+   'videos/faculty1/work-energy.mp4', false, now() - interval '3 days'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Structure of Atom',
+   'Bohr Model and Quantum Numbers',
+   'Atomic spectra, quantum numbers, and practice questions.',
+   'videos/faculty2/bohr-model.mp4', true, now() - interval '9 days'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Chemical Bonding',
+   'VSEPR Theory and Molecular Geometry',
+   'Shapes of molecules with all VSEPR examples.',
+   'videos/faculty2/vsepr.mp4', true, now() - interval '5 days'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Equilibrium',
+   'Le Chatelier''s Principle',
+   'Effect of temperature, pressure and concentration on equilibrium.',
+   'videos/faculty2/le-chatelier.mp4', true, now() - interval '2 days');
+
+-- ============================================================
+-- 7. STUDY MATERIALS
+-- ============================================================
+INSERT INTO academy.study_materials
+  (id, faculty_id, subject, chapter, title, description, storage_path, is_visible, uploaded_at)
+VALUES
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Units and Measurement',
+   'Units & Measurement — Complete Notes',
+   'Handwritten notes covering all SI units, dimensional analysis.',
+   'materials/faculty1/units-notes.pdf', true, now() - interval '11 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Laws of Motion',
+   'Newton''s Laws — Formula Sheet',
+   'Quick-revision formula sheet with all important equations.',
+   'materials/faculty1/newtons-formulasheet.pdf', true, now() - interval '7 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Thermodynamics',
+   'Thermodynamics Chapter Notes',
+   'First and second law, Carnot engine, entropy notes.',
+   'materials/faculty1/thermodynamics.pdf', true, now() - interval '4 days'),
+
+  (gen_random_uuid(), faculty1_auth_id, 'Physics', 'Waves',
+   'Waves — Previous Year MCQs',
+   'Compiled PYQs on waves from MHT-CET 2019–2024.',
+   'materials/faculty1/waves-pyq.pdf', false, now() - interval '1 day'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Some Basic Concepts',
+   'Mole Concept — Complete Notes',
+   'Mole, molarity, molality with solved numericals.',
+   'materials/faculty2/mole-concept.pdf', true, now() - interval '12 days'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Periodic Table',
+   'Periodic Table — Trends & Properties',
+   'Ionization energy, electronegativity, atomic radius trends.',
+   'materials/faculty2/periodic-table.pdf', true, now() - interval '6 days'),
+
+  (gen_random_uuid(), faculty2_auth_id, 'Chemistry', 'Organic Chemistry Basics',
+   'Organic Chemistry — Reaction Mechanisms',
+   'SN1, SN2, E1, E2 reactions with examples.',
+   'materials/faculty2/organic-mechanisms.pdf', true, now() - interval '2 days');
+
+-- ============================================================
+-- 8. CONTENT VIEWS (sample analytics data)
+-- ============================================================
+-- We need actual video/material IDs for this.
+-- Run the section below AFTER inserting videos/materials,
+-- or use the view query:
+--   SELECT id FROM academy.video_lectures WHERE faculty_id = '<uuid>';
+-- Then insert like:
+--
+-- INSERT INTO academy.content_views (id, content_id, content_type, viewed_at)
+-- VALUES (gen_random_uuid(), '<video-id>', 'video', now() - interval '3 days');
+--
+-- For now, inserting placeholder rows using a subquery:
+INSERT INTO academy.content_views (id, content_id, content_type, viewed_at)
+SELECT
+  gen_random_uuid(),
+  vl.id,
+  'video',
+  now() - (random() * interval '10 days')
+FROM academy.video_lectures vl, generate_series(1, 5)  -- 5 views per video
+WHERE vl.faculty_id IN (faculty1_auth_id, faculty2_auth_id);
+
+INSERT INTO academy.content_views (id, content_id, content_type, viewed_at)
+SELECT
+  gen_random_uuid(),
+  sm.id,
+  'material',
+  now() - (random() * interval '10 days')
+FROM academy.study_materials sm, generate_series(1, 3)  -- 3 views per material
+WHERE sm.faculty_id IN (faculty1_auth_id, faculty2_auth_id);
+
+END $$;
+
+-- ============================================================
+-- VERIFY — run these to confirm data was inserted
+-- ============================================================
+-- SELECT * FROM academy.faculty;
+-- SELECT * FROM academy.subjects;
+-- SELECT count(*) FROM academy.chapters;
+-- SELECT * FROM academy.timetable ORDER BY day, start_time;
+-- SELECT * FROM academy.video_lectures;
+-- SELECT * FROM academy.study_materials;
+-- SELECT * FROM academy.v_faculty_uploads;
+-- SELECT count(*) FROM academy.content_views;

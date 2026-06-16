@@ -7,9 +7,7 @@ import '../../../models/faculty_upload_model.dart';
 import '../../../providers/faculty_providers.dart';
 import '../widgets/recent_upload_tile.dart';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+/// Local UI helper functions.
 
 Color _subjectColor(String? subject) {
   switch (subject?.toLowerCase()) {
@@ -33,9 +31,7 @@ String _initials(String? name) {
   return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
 }
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+
 
 class FacultyMaterialsScreen extends ConsumerStatefulWidget {
   const FacultyMaterialsScreen({super.key});
@@ -365,9 +361,7 @@ class _FacultyMaterialsScreenState
   Widget _buildError() => const Center(child: Text('Could not load uploads'));
 }
 
-// ---------------------------------------------------------------------------
-// Sub-widgets
-// ---------------------------------------------------------------------------
+// Sub-widgets for local UI components.
 
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.label, required this.value, required this.icon, required this.color});
